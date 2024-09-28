@@ -4,36 +4,12 @@ package kv739;
 option go_package = "cs739-kv-store/proto/kv739;kv739";
 
 // Define the service for key-value operations.
-service KeyValueService {
-  // Initializes the connection to a server.
-  rpc Init(InitRequest) returns (InitResponse);
-
-  // Shuts down the connection and releases resources.
-  rpc Shutdown(ShutdownRequest) returns (ShutdownResponse);
-
+service KVStoreService {
   // Retrieves the value corresponding to a key.
   rpc Get(GetRequest) returns (GetResponse);
 
   // Performs a get operation and then stores the specified value.
   rpc Put(PutRequest) returns (PutResponse);
-}
-
-// Request message for initialization.
-message InitRequest {
-  string server_name = 1; // Server name in the format "host:port"
-}
-
-// Response message for initialization.
-message InitResponse {
-  int32 status = 1; // 0 on success, -1 on failure
-}
-
-// Request message for shutdown.
-message ShutdownRequest {}
-
-// Response message for shutdown.
-message ShutdownResponse {
-  int32 status = 1; // 0 on success, -1 on failure
 }
 
 // Request message for getting a value.

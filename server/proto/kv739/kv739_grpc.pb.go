@@ -19,227 +19,147 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	KeyValueService_Init_FullMethodName     = "/kv739.KeyValueService/Init"
-	KeyValueService_Shutdown_FullMethodName = "/kv739.KeyValueService/Shutdown"
-	KeyValueService_Get_FullMethodName      = "/kv739.KeyValueService/Get"
-	KeyValueService_Put_FullMethodName      = "/kv739.KeyValueService/Put"
+	KVStoreService_Get_FullMethodName = "/kv739.KVStoreService/Get"
+	KVStoreService_Put_FullMethodName = "/kv739.KVStoreService/Put"
 )
 
-// KeyValueServiceClient is the client_go API for KeyValueService service.
+// KVStoreServiceClient is the client API for KVStoreService service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 //
 // Define the service for key-value operations.
-type KeyValueServiceClient interface {
-	// Initializes the connection to a server.
-	Init(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error)
-	// Shuts down the connection and releases resources.
-	Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error)
+type KVStoreServiceClient interface {
 	// Retrieves the value corresponding to a key.
 	Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error)
 	// Performs a get operation and then stores the specified value.
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 }
 
-type keyValueServiceClient struct {
+type kVStoreServiceClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewKeyValueServiceClient(cc grpc.ClientConnInterface) KeyValueServiceClient {
-	return &keyValueServiceClient{cc}
+func NewKVStoreServiceClient(cc grpc.ClientConnInterface) KVStoreServiceClient {
+	return &kVStoreServiceClient{cc}
 }
 
-func (c *keyValueServiceClient) Init(ctx context.Context, in *InitRequest, opts ...grpc.CallOption) (*InitResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(InitResponse)
-	err := c.cc.Invoke(ctx, KeyValueService_Init_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *keyValueServiceClient) Shutdown(ctx context.Context, in *ShutdownRequest, opts ...grpc.CallOption) (*ShutdownResponse, error) {
-	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ShutdownResponse)
-	err := c.cc.Invoke(ctx, KeyValueService_Shutdown_FullMethodName, in, out, cOpts...)
-	if err != nil {
-		return nil, err
-	}
-	return out, nil
-}
-
-func (c *keyValueServiceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
+func (c *kVStoreServiceClient) Get(ctx context.Context, in *GetRequest, opts ...grpc.CallOption) (*GetResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(GetResponse)
-	err := c.cc.Invoke(ctx, KeyValueService_Get_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, KVStoreService_Get_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-func (c *keyValueServiceClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
+func (c *kVStoreServiceClient) Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(PutResponse)
-	err := c.cc.Invoke(ctx, KeyValueService_Put_FullMethodName, in, out, cOpts...)
+	err := c.cc.Invoke(ctx, KVStoreService_Put_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// KeyValueServiceServer is the server API for KeyValueService service.
-// All implementations must embed UnimplementedKeyValueServiceServer
+// KVStoreServiceServer is the server API for KVStoreService service.
+// All implementations must embed UnimplementedKVStoreServiceServer
 // for forward compatibility.
 //
 // Define the service for key-value operations.
-type KeyValueServiceServer interface {
-	// Initializes the connection to a server.
-	Init(context.Context, *InitRequest) (*InitResponse, error)
-	// Shuts down the connection and releases resources.
-	Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error)
+type KVStoreServiceServer interface {
 	// Retrieves the value corresponding to a key.
 	Get(context.Context, *GetRequest) (*GetResponse, error)
 	// Performs a get operation and then stores the specified value.
 	Put(context.Context, *PutRequest) (*PutResponse, error)
-	mustEmbedUnimplementedKeyValueServiceServer()
+	mustEmbedUnimplementedKVStoreServiceServer()
 }
 
-// UnimplementedKeyValueServiceServer must be embedded to have
+// UnimplementedKVStoreServiceServer must be embedded to have
 // forward compatible implementations.
 //
 // NOTE: this should be embedded by value instead of pointer to avoid a nil
 // pointer dereference when methods are called.
-type UnimplementedKeyValueServiceServer struct{}
+type UnimplementedKVStoreServiceServer struct{}
 
-func (UnimplementedKeyValueServiceServer) Init(context.Context, *InitRequest) (*InitResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Init not implemented")
-}
-func (UnimplementedKeyValueServiceServer) Shutdown(context.Context, *ShutdownRequest) (*ShutdownResponse, error) {
-	return nil, status.Errorf(codes.Unimplemented, "method Shutdown not implemented")
-}
-func (UnimplementedKeyValueServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
+func (UnimplementedKVStoreServiceServer) Get(context.Context, *GetRequest) (*GetResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Get not implemented")
 }
-func (UnimplementedKeyValueServiceServer) Put(context.Context, *PutRequest) (*PutResponse, error) {
+func (UnimplementedKVStoreServiceServer) Put(context.Context, *PutRequest) (*PutResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Put not implemented")
 }
-func (UnimplementedKeyValueServiceServer) mustEmbedUnimplementedKeyValueServiceServer() {}
-func (UnimplementedKeyValueServiceServer) testEmbeddedByValue()                         {}
+func (UnimplementedKVStoreServiceServer) mustEmbedUnimplementedKVStoreServiceServer() {}
+func (UnimplementedKVStoreServiceServer) testEmbeddedByValue()                        {}
 
-// UnsafeKeyValueServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to KeyValueServiceServer will
+// UnsafeKVStoreServiceServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to KVStoreServiceServer will
 // result in compilation errors.
-type UnsafeKeyValueServiceServer interface {
-	mustEmbedUnimplementedKeyValueServiceServer()
+type UnsafeKVStoreServiceServer interface {
+	mustEmbedUnimplementedKVStoreServiceServer()
 }
 
-func RegisterKeyValueServiceServer(s grpc.ServiceRegistrar, srv KeyValueServiceServer) {
-	// If the following call pancis, it indicates UnimplementedKeyValueServiceServer was
+func RegisterKVStoreServiceServer(s grpc.ServiceRegistrar, srv KVStoreServiceServer) {
+	// If the following call pancis, it indicates UnimplementedKVStoreServiceServer was
 	// embedded by pointer and is nil.  This will cause panics if an
 	// unimplemented method is ever invoked, so we test this at initialization
 	// time to prevent it from happening at runtime later due to I/O.
 	if t, ok := srv.(interface{ testEmbeddedByValue() }); ok {
 		t.testEmbeddedByValue()
 	}
-	s.RegisterService(&KeyValueService_ServiceDesc, srv)
+	s.RegisterService(&KVStoreService_ServiceDesc, srv)
 }
 
-func _KeyValueService_Init_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(InitRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KeyValueServiceServer).Init(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KeyValueService_Init_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KeyValueServiceServer).Init(ctx, req.(*InitRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _KeyValueService_Shutdown_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
-	in := new(ShutdownRequest)
-	if err := dec(in); err != nil {
-		return nil, err
-	}
-	if interceptor == nil {
-		return srv.(KeyValueServiceServer).Shutdown(ctx, in)
-	}
-	info := &grpc.UnaryServerInfo{
-		Server:     srv,
-		FullMethod: KeyValueService_Shutdown_FullMethodName,
-	}
-	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KeyValueServiceServer).Shutdown(ctx, req.(*ShutdownRequest))
-	}
-	return interceptor(ctx, in, info, handler)
-}
-
-func _KeyValueService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _KVStoreService_Get_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(GetRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(KeyValueServiceServer).Get(ctx, in)
+		return srv.(KVStoreServiceServer).Get(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: KeyValueService_Get_FullMethodName,
+		FullMethod: KVStoreService_Get_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KeyValueServiceServer).Get(ctx, req.(*GetRequest))
+		return srv.(KVStoreServiceServer).Get(ctx, req.(*GetRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-func _KeyValueService_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _KVStoreService_Put_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(PutRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(KeyValueServiceServer).Put(ctx, in)
+		return srv.(KVStoreServiceServer).Put(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: KeyValueService_Put_FullMethodName,
+		FullMethod: KVStoreService_Put_FullMethodName,
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(KeyValueServiceServer).Put(ctx, req.(*PutRequest))
+		return srv.(KVStoreServiceServer).Put(ctx, req.(*PutRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// KeyValueService_ServiceDesc is the grpc.ServiceDesc for KeyValueService service.
+// KVStoreService_ServiceDesc is the grpc.ServiceDesc for KVStoreService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var KeyValueService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "kv739.KeyValueService",
-	HandlerType: (*KeyValueServiceServer)(nil),
+var KVStoreService_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "kv739.KVStoreService",
+	HandlerType: (*KVStoreServiceServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
-			MethodName: "Init",
-			Handler:    _KeyValueService_Init_Handler,
-		},
-		{
-			MethodName: "Shutdown",
-			Handler:    _KeyValueService_Shutdown_Handler,
-		},
-		{
 			MethodName: "Get",
-			Handler:    _KeyValueService_Get_Handler,
+			Handler:    _KVStoreService_Get_Handler,
 		},
 		{
 			MethodName: "Put",
-			Handler:    _KeyValueService_Put_Handler,
+			Handler:    _KVStoreService_Put_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
