@@ -1,149 +1,148 @@
-// kv739_test.cpp
-#include "kv739_client.h"
 #include <iostream>
-#include <cstring> // For strcpy
+#include <thread>
+#include <chrono>
+#include <string>
 #include <cstdlib> // For getenv
 
-#define MAX_VALUE_SIZE 1024 // Define a maximum value size
+// Include your client header file
+#include "kv739_client.h"
 
-// Function to test kv739_init
-int test_kv739_init(const char *server_name)
+// Helper function to initialize the client with the server address
+void init_client(const std::string &server_address)
 {
-    std::cout << "Testing kv739_init with server: " << server_name << std::endl;
-    if (kv739_init(const_cast<char *>(server_name)) == 0)
+    char *server_name = const_cast<char *>(server_address.c_str());
+    if (kv739_init(server_name) != 0)
     {
-        std::cout << "kv739_init: SUCCESS" << std::endl;
-        return 0;
+        std::cerr << "Failed to initialize client with server address: " << server_name << std::endl;
+        exit(-1);
+    }
+    std::cout << "Client successfully initialized with server address: " << server_name << std::endl;
+}
+
+// Helper function to gracefully shut down the client
+void shutdown_client()
+{
+    if (kv739_shutdown() != 0)
+    {
+        std::cerr << "Failed to shut down the client." << std::endl;
     }
     else
     {
-        std::cerr << "kv739_init: FAILURE" << std::endl;
-        return -1;
+        std::cout << "Client successfully shut down." << std::endl;
     }
 }
 
-// Function to test kv739_get
-int test_kv739_get(const char *key)
+// Helper function to print test results
+void print_test_result(const std::string &test_name, bool passed)
 {
-    char value[MAX_VALUE_SIZE + 1] = {0}; // Buffer for value to be retrieved
-
-    std::cout << "Testing kv739_get with key: " << key << std::endl;
-    int get_result = kv739_get(const_cast<char *>(key), value);
-    if (get_result == 0)
-    {
-        std::cout << "kv739_get: SUCCESS, value is: " << value << std::endl;
-        return 0;
-    }
-    else if (get_result == 1)
-    {
-        std::cout << "kv739_get: SUCCESS, key not found." << std::endl;
-        return 1;
-    }
-    else
-    {
-        std::cerr << "kv739_get: FAILURE" << std::endl;
-        return -1;
-    }
+    std::cout << "Test: " << test_name << " - " << (passed ? "PASSED" : "FAILED") << std::endl;
 }
 
-// Function to test kv739_put
-int test_kv739_put(const char *key, const char *value)
+// Test: Put Operation
+void test_put()
 {
-    char old_value[MAX_VALUE_SIZE + 1] = {0}; // Buffer for old_value
+    std::cout << "Running test: Put Operation" << std::endl;
+    char old_value[1024] = {0};
+    int result = kv739_put("test_key", "test_value", old_value);
 
-    std::cout << "Testing kv739_put with key: " << key << ", value: " << value << std::endl;
-    int put_result = kv739_put(const_cast<char *>(key), const_cast<char *>(value), old_value);
-    if (put_result == 0)
-    {
-        std::cout << "kv739_put: SUCCESS, old value was: " << old_value << std::endl;
-        return 0;
-    }
-    else if (put_result == 1)
-    {
-        std::cout << "kv739_put: SUCCESS, no previous value existed." << std::endl;
-        return 1;
-    }
-    else
-    {
-        std::cerr << "kv739_put: FAILURE" << std::endl;
-        return -1;
-    }
+    bool passed = (result == 1); // Status 1 indicates the key was newly inserted
+    print_test_result("Put Operation", passed);
 }
 
-// Function to test kv739_shutdown
-int test_kv739_shutdown()
+// Test: Get Operation
+void test_get()
 {
-    std::cout << "Testing kv739_shutdown" << std::endl;
-    if (kv739_shutdown() == 0)
+    std::cout << "Running test: Get Operation" << std::endl;
+    char value[1024] = {0};
+    int result = kv739_get("test_key", value);
+
+    bool passed = (result == 0) && (std::string(value) == "test_value"); // Status 0 indicates the key was found
+    print_test_result("Get Operation", passed);
+}
+
+// Test: Put Overwrite Operation
+void test_put_overwrite()
+{
+    std::cout << "Running test: Put Overwrite Operation" << std::endl;
+    char old_value[1024] = {0};
+
+    // Put initial value
+    kv739_put("overwrite_key", "initial_value", old_value);
+
+    // Overwrite value
+    int result = kv739_put("overwrite_key", "new_value", old_value);
+
+    // Validate the overwrite
+    char new_value[1024] = {0};
+    kv739_get("overwrite_key", new_value);
+
+    bool passed = (result == 0) && (std::string(old_value) == "initial_value") && (std::string(new_value) == "new_value");
+    print_test_result("Put Overwrite Operation", passed);
+}
+
+// Test: Get Non-Existent Key
+void test_get_non_existent_key()
+{
+    std::cout << "Running test: Get Non-Existent Key" << std::endl;
+    char value[1024] = {0};
+    int result = kv739_get("non_existent_key", value);
+
+    bool passed = (result == 1); // Status 1 indicates the key was not found
+    print_test_result("Get Non-Existent Key", passed);
+}
+
+// Test: Concurrent Puts
+void test_concurrent_puts()
+{
+    std::cout << "Running test: Concurrent Puts Operation" << std::endl;
+
+    // Use multiple threads to simulate concurrent puts
+    std::thread threads[10];
+    for (int i = 0; i < 10; i++)
     {
-        std::cout << "kv739_shutdown: SUCCESS" << std::endl;
-        return 0;
+        threads[i] = std::thread([i]()
+                                 {
+            char old_value[1024] = {0};
+            std::string key = "concurrent_key";
+            std::string value = "value_" + std::to_string(i);
+            kv739_put(const_cast<char *>(key.c_str()), const_cast<char *>(value.c_str()), old_value); });
     }
-    else
+
+    // Join threads to wait for completion
+    for (int i = 0; i < 10; i++)
     {
-        std::cerr << "kv739_shutdown: FAILURE" << std::endl;
-        return -1;
+        threads[i].join();
     }
+
+    // Get the final value after concurrent puts
+    char final_value[1024] = {0};
+    int result = kv739_get("concurrent_key", final_value);
+
+    // Check that a value was successfully retrieved
+    bool passed = (result == 0) && (std::string(final_value).find("value_") == 0);
+    print_test_result("Concurrent Puts Operation", passed);
 }
 
 int main()
 {
-    // Define server address in "host:port" format (update this as needed for your setup)
     // Read the server address from the environment variable "SERVER_ADDRESS"
-    const char *server_name_env = getenv("SERVER_ADDRESS");
+    const char *server_address_env = getenv("SERVER_ADDRESS");
 
     // If the environment variable is not set, use a default value
-    const char *server_name = (server_name_env != nullptr) ? server_name_env : "localhost:6666";
+    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:6666";
 
-    // Run kv739_init test
-    if (test_kv739_init(server_name) != 0)
-    {
-        std::cerr << "Test kv739_init failed. Exiting tests." << std::endl;
-        return -1;
-    }
+    // Initialize client with the server address
+    init_client(server_address);
 
-    // Run kv739_put test
-    const char test_key[] = "test_key";
-    const char test_value[] = "test_value";
-    if (test_kv739_put(test_key, test_value) == -1)
-    {
-        std::cerr << "Test kv739_put failed. Exiting tests." << std::endl;
-        kv739_shutdown();
-        return -1;
-    }
+    // Run the tests
+    test_put();
+    test_get();
+    test_put_overwrite();
+    test_get_non_existent_key();
+    test_concurrent_puts();
 
-    // Run kv739_get test
-    if (test_kv739_get(test_key) == -1)
-    {
-        std::cerr << "Test kv739_get failed. Exiting tests." << std::endl;
-        kv739_shutdown();
-        return -1;
-    }
+    // Shutdown client after tests
+    shutdown_client();
 
-    // Run kv739_put test again with a different value
-    const char new_value[] = "new_test_value";
-    if (test_kv739_put(test_key, new_value) == -1)
-    {
-        std::cerr << "Test kv739_put with new value failed. Exiting tests." << std::endl;
-        kv739_shutdown();
-        return -1;
-    }
-
-    // Run kv739_get test again to verify new value
-    if (test_kv739_get(test_key) == -1)
-    {
-        std::cerr << "Test kv739_get after put failed. Exiting tests." << std::endl;
-        kv739_shutdown();
-        return -1;
-    }
-
-    // Run kv739_shutdown test
-    if (test_kv739_shutdown() != 0)
-    {
-        std::cerr << "Test kv739_shutdown failed." << std::endl;
-        return -1;
-    }
-
-    std::cout << "All tests passed successfully!" << std::endl;
     return 0;
 }
