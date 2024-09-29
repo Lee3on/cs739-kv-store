@@ -9,16 +9,20 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 )
 
 var (
 	port     = 6666
 	serverIp = "localhost"
 
-	db *sql.DB
+	db   *sql.DB
+	cmap *sync.Map
 )
 
 func initDB() {
+	cmap = &sync.Map{}
+
 	var err error
 	db, err = sql.Open("sqlite3", "kv739.db")
 	if err != nil {
@@ -51,7 +55,10 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterKVStoreServiceServer(grpcServer, &server{db: db})
+	pb.RegisterKVStoreServiceServer(grpcServer, &server{
+		db:   db,
+		cmap: cmap,
+	})
 
 	log.Printf("Server is running on port %d...\n", port)
 	if err := grpcServer.Serve(lis); err != nil {

@@ -1,24 +1,22 @@
 package repository
 
-import "sync"
+import (
+	"sync"
+)
 
 type MemoryRepo struct {
-	cmap sync.Map
+	cmap *sync.Map
 }
 
-func NewMemoryRepo() *MemoryRepo {
+func NewMemoryRepo(cmap *sync.Map) *MemoryRepo {
 	return &MemoryRepo{
-		cmap: sync.Map{},
+		cmap: cmap,
 	}
 }
 
-func (m *MemoryRepo) Put(key, value string) (string, bool, error) {
-	oldValue, ok := m.cmap.LoadOrStore(key, value)
-	if !ok {
-		return "", false, nil
-	}
-
-	return oldValue.(string), true, nil
+func (m *MemoryRepo) Put(key, value string) error {
+	m.cmap.Store(key, value)
+	return nil
 }
 
 func (m *MemoryRepo) Get(key string) (string, bool, error) {

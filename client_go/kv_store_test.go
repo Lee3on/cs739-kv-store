@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt" 
+	"fmt"
 	"log"
 	"testing"
 	"time"
@@ -85,13 +85,6 @@ func TestPutOverwrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Error calling Put: %v", err)
 	}
-	if putResponse.OldValue != "initial_value" {
-		t.Errorf("Expected OldValue 'initial_value', got '%s'", putResponse.OldValue)
-	}
-	if putResponse.Status != 0 {
-		t.Errorf("Expected Status 0, got %d", putResponse.Status)
-	}
-
 	// Verify the new value was stored
 	getResponse, err := client.Get(context.Background(), &pb.GetRequest{
 		Key: "overwrite_key",
@@ -102,6 +95,14 @@ func TestPutOverwrite(t *testing.T) {
 	if getResponse.Value != "new_value" {
 		t.Errorf("Expected Value 'new_value', got '%s'", getResponse.Value)
 	}
+
+	if putResponse.OldValue != "initial_value" {
+		t.Errorf("Expected OldValue 'initial_value', got '%s'", putResponse.OldValue)
+	}
+	if putResponse.Status != 0 {
+		t.Errorf("Expected Status 0, got %d", putResponse.Status)
+	}
+
 }
 
 // TestGetNonExistentKey tests attempting to Get a non-existent key
@@ -156,5 +157,24 @@ func TestConcurrentPuts(t *testing.T) {
 	// The final value can be any of the concurrent values, so we just check that it's not empty
 	if getResponse.Value == "" {
 		t.Errorf("Expected a non-empty Value, got empty string")
+	}
+}
+
+func TestRecovery(t *testing.T) {
+	client, conn := createClient()
+	defer conn.Close()
+
+	// Test: Get the value we just put
+	getResponse, err := client.Get(context.Background(), &pb.GetRequest{
+		Key: "test_key",
+	})
+	if err != nil {
+		t.Fatalf("Error calling Get: %v", err)
+	}
+	if getResponse.Status != 0 {
+		t.Errorf("Expected Status 0, got %d", getResponse.Status)
+	}
+	if getResponse.Value != "test_value" {
+		t.Errorf("Expected Value 'test_value', got '%s'", getResponse.Value)
 	}
 }

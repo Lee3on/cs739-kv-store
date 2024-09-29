@@ -5,6 +5,7 @@ import (
 	"cs739-kv-store/repository"
 	"database/sql"
 	"log"
+	"sync"
 )
 
 type PutService struct {
@@ -12,9 +13,9 @@ type PutService struct {
 	rdsRepo    *repository.RDSRepo
 }
 
-func NewPutService(db *sql.DB) *PutService {
+func NewPutService(cmap *sync.Map, db *sql.DB) *PutService {
 	return &PutService{
-		memoryRepo: repository.NewMemoryRepo(),
+		memoryRepo: repository.NewMemoryRepo(cmap),
 		rdsRepo:    repository.NewRDSRepo(db),
 	}
 }
@@ -23,14 +24,20 @@ func (s *PutService) Put(ctx context.Context, key string, value string) (string,
 	if s.memoryRepo == nil {
 		return "", false, nil
 	}
-	if err := s.rdsRepo.Put(key, value); err != nil {
-		log.Printf("Error putting key: %s with value: %s in RDS: %v\n", key, value, err)
-		return "", false, err
+
+	oldValue, found, err := s.memoryRepo.Get(key)
+	if err != nil {
+		log.Printf("Error getting key: %s from memory: %v\n", key, err)
 	}
 
-	oldValue, found, err := s.memoryRepo.Put(key, value)
-	if err != nil {
-		log.Printf("Error putting key: %s with value: %s in memory: %v\n", key, value, err)
+	go func() {
+		if err := s.memoryRepo.Put(key, value); err != nil {
+			log.Printf("Error putting key: %s with value: %s in memory: %v\n", key, value, err)
+		}
+	}()
+
+	if err := s.rdsRepo.Put(key, value); err != nil {
+		log.Printf("Error putting key: %s with value: %s in RDS: %v\n", key, value, err)
 		return "", false, err
 	}
 

@@ -6,6 +6,7 @@ import (
 	"database/sql"
 	"errors"
 	"log"
+	"sync"
 )
 
 var (
@@ -18,9 +19,9 @@ type GetService struct {
 	rdsRepo    *repository.RDSRepo
 }
 
-func NewGetService(db *sql.DB) *GetService {
+func NewGetService(cmap *sync.Map, db *sql.DB) *GetService {
 	return &GetService{
-		memoryRepo: repository.NewMemoryRepo(),
+		memoryRepo: repository.NewMemoryRepo(cmap),
 		rdsRepo:    repository.NewRDSRepo(db),
 	}
 }
@@ -41,6 +42,7 @@ func (s *GetService) GetByKey(ctx context.Context, key string) (string, bool, er
 	}
 
 	// Key not found in memoryRepo, fetch from rdsRepo
+	log.Printf("Key: %s not found in memoryRepo, fetching from rdsRepo\n", key)
 	value, found, err = s.GetByKeyFromRDS(ctx, key)
 	if err != nil {
 		return "", false, err
@@ -52,8 +54,7 @@ func (s *GetService) GetByKey(ctx context.Context, key string) (string, bool, er
 	}
 
 	// Update memoryRepo with the value from rdsRepo
-	_, _, err = s.memoryRepo.Put(key, value)
-	if err != nil {
+	if err = s.memoryRepo.Put(key, value); err != nil {
 		log.Printf("Error putting key: %s with value: %s in memory: %v\n", key, value, err)
 	}
 
