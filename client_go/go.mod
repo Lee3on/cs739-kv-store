@@ -3,7 +3,6 @@ module cs739-kv-store
 go 1.18
 
 require (
-	github.com/mattn/go-sqlite3 v1.14.23
 	google.golang.org/grpc v1.49.0
 	google.golang.org/protobuf v1.34.2
 )
