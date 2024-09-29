@@ -1,5 +1,10 @@
-compose_cpp:
-	docker-compose -f docker-compose_cpp.yml up --build
+compose:
+	docker-compose up --build
 
-compose_down_cpp:
-	docker-compose -f docker-compose_cpp.yml down
+compose_down:
+	docker-compose down
+
+compose-go:
+	docker-compose -f docker-compose_go.yml up --build
+compose-go-down:
+	docker-compose -f docker-compose_go.yml down
