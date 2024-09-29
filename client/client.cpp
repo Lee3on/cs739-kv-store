@@ -1,3 +1,4 @@
+#include "kv739_client.h"
 #include <grpcpp/grpcpp.h>
 #include "kv739.grpc.pb.h"
 #include <string>
@@ -71,43 +72,93 @@ private:
     std::unique_ptr<KVStoreService::Stub> stub_; // gRPC stub to communicate with the server
 };
 
-int main()
+// Global pointer to the gRPC client object
+KVStoreClient *client = nullptr;
+
+// Initialize the gRPC client with the given server address in "host:port" format.
+int kv739_init(char *server_name)
 {
-    // Specify the server address
-    std::string server_address = "localhost:50051";
-
-    // Create a KVStoreClient instance
-    KVStoreClient client(grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials()));
-
-    // Example usage of the client
-
-    // Perform a Put operation
-    std::string old_value;
-    int put_status = client.kv739_put("exampleKey", "exampleValue", old_value);
-    if (put_status == 0 || put_status == 1)
+    if (client != nullptr)
     {
-        std::cout << "Put operation successful. Old value: " << old_value << std::endl;
-    }
-    else
-    {
-        std::cout << "Put operation failed." << std::endl;
+        std::cerr << "Client is already initialized." << std::endl;
+        return -1;
     }
 
-    // Perform a Get operation
-    std::string value;
-    int get_status = client.kv739_get("exampleKey", value);
-    if (get_status == 0)
+    // Create a new KVStoreClient instance with the given server address
+    std::string server_address(server_name);
+    client = new KVStoreClient(grpc::CreateChannel(server_address, grpc::InsecureChannelCredentials()));
+
+    // Check if client is created successfully
+    if (client == nullptr)
     {
-        std::cout << "Get operation successful. Value: " << value << std::endl;
-    }
-    else if (get_status == 1)
-    {
-        std::cout << "Key not found." << std::endl;
-    }
-    else
-    {
-        std::cout << "Get operation failed." << std::endl;
+        std::cerr << "Failed to initialize client." << std::endl;
+        return -1;
     }
 
     return 0;
+}
+
+// Shutdown the connection to the server and free up resources.
+int kv739_shutdown(void)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    // Delete the client and free resources
+    delete client;
+    client = nullptr;
+
+    return 0;
+}
+
+// Get the value corresponding to the given key.
+int kv739_get(char *key, char *value)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string key_str(key);
+    std::string value_str;
+
+    // Perform get operation
+    int result = client->kv739_get(key_str, value_str);
+
+    if (result == 0)
+    {
+        // Copy the value to the provided buffer
+        strcpy(value, value_str.c_str());
+    }
+
+    return result;
+}
+
+// Perform a get operation on the current value into old_value and then store the specified value.
+int kv739_put(char *key, char *value, char *old_value)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string key_str(key);
+    std::string value_str(value);
+    std::string old_value_str;
+
+    // Perform put operation
+    int result = client->kv739_put(key_str, value_str, old_value_str);
+
+    if (result == 0 || result == 1)
+    {
+        // Copy the old value to the provided buffer
+        strcpy(old_value, old_value_str.c_str());
+    }
+
+    return result;
 }

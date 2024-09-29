@@ -4,17 +4,18 @@ import (
 	pb "cs739-kv-store/proto/kv739"
 	"database/sql"
 	"flag"
-	_ "github.com/mattn/go-sqlite3"
-	"google.golang.org/grpc"
 	"log"
 	"net"
 	"strconv"
 	"sync"
+
+	_ "github.com/mattn/go-sqlite3"
+	"google.golang.org/grpc"
 )
 
 var (
-	port     = 6666
-	serverIp = "localhost"
+	port     int
+	serverIp string
 
 	db   *sql.DB
 	cmap *sync.Map
@@ -43,7 +44,8 @@ func initDB() {
 
 func main() {
 	// Parse command-line arguments
-	flag.IntVar(&port, "port", 6666, "Server port")
+	flag.IntVar(&port, "port", 50051, "Server port")
+	flag.StringVar(&serverIp, "ip", "localhost", "Server IP")
 	flag.Parse()
 
 	initDB()

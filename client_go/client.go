@@ -4,15 +4,23 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	pb "cs739-kv-store/proto/kv739" // Import the generated pb package
+
 	"google.golang.org/grpc"
 )
 
 func main() {
 	// Connect to the gRPC server
-	conn, err := grpc.Dial("localhost:6666", grpc.WithInsecure())
+	// Read server address from environment variable
+	address := os.Getenv("SERVER_ADDRESS")
+	if address == "" {
+		log.Fatalf("SERVER_ADDRESS environment variable is not set")
+	}
+
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to server: %v", err)
 	}

@@ -1,0 +1,30 @@
+# docker-compose.yml
+
+version: '3.8'
+
+services:
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: go-server
+    ports:
+      - "6666:6666" # Map host port 6666 to container port 6666
+    networks:
+      - kv-network
+
+  client:
+    build:
+      context: ./client_go
+      dockerfile: Dockerfile
+    container_name: go-client
+    depends_on:
+      - server # Ensure the server starts before the client
+    networks:
+      - kv-network
+    environment:
+      - SERVER_ADDRESS=go-server:6666 # Set the server address to the server container
+
+networks:
+  kv-network:
+    driver: bridge
