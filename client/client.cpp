@@ -28,6 +28,7 @@ public:
 
         GetResponse response;
         ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
 
         Status status = stub_->Get(&context, request, &response);
 
@@ -55,6 +56,7 @@ public:
 
         PutResponse response;
         ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
 
         Status status = stub_->Put(&context, request, &response);
 

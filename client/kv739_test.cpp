@@ -10,6 +10,10 @@
 // Include your client header file
 #include "kv739_client.h"
 
+std::vector<std::string> hot_keys;
+std::vector<std::string> cold_keys;
+std::vector<std::string> uniform_keys;
+
 // Helper function to initialize the client with the server address
 void init_client(const std::string &server_address)
 {
@@ -150,78 +154,124 @@ void measure_performance(const std::string &test_name, int num_requests, const s
 }
 
 // Test: Performance with 10% hot keys and 90% of requests to those hot keys
-void test_hot_keys_performance(int num_requests)
+void gen_hot_cold_keys(int total_num, float percent)
 {
-    std::cout << "Running performance test: 10% Hot Keys" << std::endl;
-
-    // Prepare hot keys (10% of total)
-    int num_hot_keys = 10;
-    std::vector<std::string> hot_keys;
-    char old_value[1024] = {0};
+    int num_hot_keys = total_num * percent;
+    int num_cold_keys = total_num - num_hot_keys;
     for (int i = 0; i < num_hot_keys; ++i)
     {
         hot_keys.push_back("hot_key_" + std::to_string(i));
-        kv739_put(const_cast<char *>(hot_keys[i].c_str()), "initial_hot_value", old_value);
     }
-
-    // Prepare cold keys (remaining 90%)
-    int num_cold_keys = 90;
-    std::vector<std::string> cold_keys;
     for (int i = 0; i < num_cold_keys; ++i)
     {
         std::string cold_key = "cold_key_" + std::to_string(i);
         cold_keys.push_back(cold_key);
-        kv739_put(const_cast<char *>(cold_key.c_str()), "initial_cold_value", old_value);
+    }
+}
+
+void gen_uniform_distribution_keys(int total_num)
+{
+    for (int i = 0; i < total_num; ++i)
+    {
+        uniform_keys.push_back("uniform_key_" + std::to_string(i));
+    }
+}
+
+void test_hot_keys_performance(int num_keys, int num_requests)
+{
+    std::cout << "Running performance test: 10% Hot Keys" << std::endl;
+
+    gen_hot_cold_keys(num_keys, 0.1);
+
+    char old_value[1024] = {0};
+    for (int i = 0; i < hot_keys.size(); ++i)
+    {
+        kv739_put(const_cast<char *>(hot_keys[i].c_str()), "initial_hot_value", old_value);
+    }
+
+    for (int i = 0; i < cold_keys.size(); ++i)
+    {
+        kv739_put(const_cast<char *>(cold_keys[i].c_str()), "initial_cold_value", old_value);
     }
 
     // Randomly generate 90% of requests for hot keys and 10% for cold keys
     std::mt19937 gen(std::random_device{}());
-    std::uniform_int_distribution<> dist(0, 99); // Generate numbers between 0 and 99
+    std::uniform_int_distribution<> dist(0, num_keys - 1);
 
     measure_performance("10% Hot Keys Performance", num_requests, [&]()
-    {
+                        {
         std::string key;
         if (dist(gen) < 90) // 90% of the time, pick a hot key
         {
-            key = hot_keys[dist(gen) % num_hot_keys];
+            key = hot_keys[dist(gen) % hot_keys.size()];
         }
         else // 10% of the time, pick a random cold key
         {
-            key = cold_keys[dist(gen) % num_cold_keys];
+            key = cold_keys[dist(gen) % cold_keys.size()];
         }
         char value[1024] = {0};
-        kv739_get(const_cast<char *>(key.c_str()), value);
-    });
+        kv739_get(const_cast<char *>(key.c_str()), value); });
 }
 
 // Test: Performance with uniformly distributed keys and requests
-void test_uniform_distribution_performance(int num_requests)
+void test_uniform_distribution_performance(int num_keys, int num_requests)
 {
     std::cout << "Running performance test: Uniform Distribution" << std::endl;
 
+    gen_uniform_distribution_keys(num_keys);
+
     // Prepare a larger number of uniformly distributed keys
-    int num_keys = 100;
-    std::vector<std::string> keys;
     char old_value[1024] = {0};
-    for (int i = 0; i < num_keys; ++i)
+    for (int i = 0; i < uniform_keys.size(); ++i)
     {
-        keys.push_back("uniform_key_" + std::to_string(i));
-        kv739_put(const_cast<char *>(keys[i].c_str()), "initial_uniform_value", old_value);
+        kv739_put(const_cast<char *>(uniform_keys[i].c_str()), "initial_uniform_value", old_value);
     }
 
-    // Randomly pick keys for each request
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> dist(0, num_keys - 1);
 
     measure_performance("Uniform Distribution Performance", num_requests, [&]()
-    {
-        std::string key = keys[dist(gen)];
+                        {
+        std::string key = uniform_keys[dist(gen)];
         char value[1024] = {0};
-        kv739_get(const_cast<char *>(key.c_str()), value);
-    });
+        int result = kv739_get(const_cast<char *>(key.c_str()), value); });
 }
 
-int main()
+// Special Recovery Test to check for hard-coded predefined keys
+void test_recovery(int num_keys, int num_requests)
+{
+    std::cout << "Running test: Recovery Test" << std::endl;
+    bool all_keys_found = true;
+
+    // Hard-coded predefined keys used in the test cases
+    std::vector<std::string> predefined_keys = {
+        "test_key",      // Used in test_put()
+        "overwrite_key", // Used in test_put_overwrite()
+        "concurrent_key" // Used in test_concurrent_puts()
+    };
+
+    gen_hot_cold_keys(num_keys, 0.1);
+    gen_uniform_distribution_keys(num_keys);
+    std::copy(hot_keys.begin(), hot_keys.end(), std::back_inserter(predefined_keys));
+    std::copy(uniform_keys.begin(), uniform_keys.end(), std::back_inserter(predefined_keys));
+
+    // Check each predefined key to ensure it is still present in the key-value store
+    for (const auto &key : predefined_keys)
+    {
+        char value[1024] = {0};
+        int result = kv739_get(const_cast<char *>(key.c_str()), value);
+
+        if (result != 0) // If any key is not found or the value is not correct
+        {
+            std::cout << "Key not found or value mismatch for key: " << key << std::endl;
+            all_keys_found = false;
+        }
+    }
+
+    print_test_result("Recovery Test", all_keys_found);
+}
+
+int main(int argc, char *argv[])
 {
     // Read the server address from the environment variable "SERVER_ADDRESS"
     const char *server_address_env = getenv("SERVER_ADDRESS");
@@ -233,16 +283,25 @@ int main()
     init_client(server_address);
 
     // Run the tests
-    test_put();
-    test_get();
-    test_put_overwrite();
-    test_get_non_existent_key();
-    test_concurrent_puts();
-
-    // Performance tests
+    int key_nums = 100;
     int num_requests = 10000;
-    test_hot_keys_performance(num_requests);
-    test_uniform_distribution_performance(num_requests);
+    if (argc > 1 && std::string(argv[1]) == "--test-recovery")
+    {
+        // Run the recovery test only
+        test_recovery(key_nums, num_requests);
+    }
+    else
+    {
+        test_put();
+        test_get();
+        test_put_overwrite();
+        test_get_non_existent_key();
+        test_concurrent_puts();
+
+        // Performance tests
+        test_hot_keys_performance(key_nums, num_requests);
+        test_uniform_distribution_performance(key_nums, num_requests);
+    }
 
     // Shutdown client after tests
     shutdown_client();

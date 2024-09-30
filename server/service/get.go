@@ -3,10 +3,8 @@ package service
 import (
 	"context"
 	"cs739-kv-store/repository"
-	"database/sql"
 	"errors"
 	"log"
-	"sync"
 )
 
 var (
@@ -19,10 +17,10 @@ type GetService struct {
 	rdsRepo    *repository.RDSRepo
 }
 
-func NewGetService(cmap *sync.Map, db *sql.DB) *GetService {
+func NewGetService(memoryRepo *repository.MemoryRepo, rdsRepo *repository.RDSRepo) *GetService {
 	return &GetService{
-		memoryRepo: repository.NewMemoryRepo(cmap),
-		rdsRepo:    repository.NewRDSRepo(db),
+		memoryRepo: memoryRepo,
+		rdsRepo:    rdsRepo,
 	}
 }
 

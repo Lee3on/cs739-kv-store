@@ -3,9 +3,7 @@ package service
 import (
 	"context"
 	"cs739-kv-store/repository"
-	"database/sql"
 	"log"
-	"sync"
 )
 
 type PutService struct {
@@ -13,10 +11,10 @@ type PutService struct {
 	rdsRepo    *repository.RDSRepo
 }
 
-func NewPutService(cmap *sync.Map, db *sql.DB) *PutService {
+func NewPutService(memoryRepo *repository.MemoryRepo, rdsRepo *repository.RDSRepo) *PutService {
 	return &PutService{
-		memoryRepo: repository.NewMemoryRepo(cmap),
-		rdsRepo:    repository.NewRDSRepo(db),
+		memoryRepo: memoryRepo,
+		rdsRepo:    rdsRepo,
 	}
 }
 

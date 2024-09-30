@@ -5,3 +5,7 @@ const (
 	InternalError = -1
 	KeyNotFound   = 1
 )
+
+const (
+	KVStoreCapacity = 20
+)

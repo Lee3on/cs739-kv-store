@@ -1,13 +1,15 @@
 package main
 
 import (
+	"cs739-kv-store/consts"
 	pb "cs739-kv-store/proto/kv739"
+	"cs739-kv-store/repository"
 	"database/sql"
 	"flag"
 	"log"
 	"net"
 	"strconv"
-	"sync"
+	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 	"google.golang.org/grpc"
@@ -17,12 +19,13 @@ var (
 	port     int
 	serverIp string
 
-	db   *sql.DB
-	cmap *sync.Map
+	db         *sql.DB
+	memoryRepo *repository.MemoryRepo
+	rdsRepo    *repository.RDSRepo
 )
 
 func initDB() {
-	cmap = &sync.Map{}
+	memoryRepo = repository.NewMemoryRepo(consts.KVStoreCapacity, 3*time.Second)
 
 	var err error
 	db, err = sql.Open("sqlite3", "kv739.db")
@@ -40,6 +43,7 @@ func initDB() {
 	if err != nil {
 		log.Fatalf("Failed to create table: %v", err)
 	}
+	rdsRepo = repository.NewRDSRepo(db)
 }
 
 func main() {
@@ -58,8 +62,8 @@ func main() {
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterKVStoreServiceServer(grpcServer, &server{
-		db:   db,
-		cmap: cmap,
+		memoryRepo: memoryRepo,
+		rdsRepo:    rdsRepo,
 	})
 
 	log.Printf("Server is running on port %d...\n", port)

@@ -37,7 +37,7 @@ RUN make install
 WORKDIR /app
 
 # Copy the proto file and client code
-COPY kv739.proto client.cpp kv739_test.cpp kv739_client.h ./
+COPY kv739.proto client.cpp kv739_client.cpp kv739_client.h kv739_test.cpp ./
 
 # Generate C++ code from the proto file
 RUN mkdir -p generated
@@ -45,6 +45,15 @@ RUN protoc --cpp_out=./generated --grpc_out=./generated \
     --plugin=protoc-gen-grpc=`which grpc_cpp_plugin` kv739.proto
 
 # Compile the client code
+RUN g++ -std=c++11 client.cpp kv739_client.cpp \
+    ./generated/kv739.pb.cc \
+    ./generated/kv739.grpc.pb.cc \
+    -I./generated \
+    `pkg-config --cflags protobuf grpc grpc++` \
+    `pkg-config --libs protobuf grpc grpc++` \
+    -o kv739_client
+
+# Compile the test code
 RUN g++ -std=c++11 client.cpp kv739_test.cpp \
     ./generated/kv739.pb.cc \
     ./generated/kv739.grpc.pb.cc \
@@ -54,5 +63,4 @@ RUN g++ -std=c++11 client.cpp kv739_test.cpp \
     -o kv739_test
 
 # Command to run when starting the container
-# Command to run the test executable with a delay to wait for the server
-CMD ["sh", "-c", "sleep 10 && ./kv739_test"]
+CMD ["sh", "-c", "sleep 10 && ./kv739_client"]
