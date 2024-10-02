@@ -3,6 +3,7 @@
 #include "kv739.grpc.pb.h"
 #include <string>
 #include <iostream>
+#include <cctype>
 
 using grpc::Channel;
 using grpc::ClientContext;
@@ -12,6 +13,46 @@ using kv739::GetResponse;
 using kv739::KVStoreService;
 using kv739::PutRequest;
 using kv739::PutResponse;
+
+bool is_valid_key(const std::string &key)
+{
+    if (key.empty() || key.length() > 128)
+    {
+        return false;
+    }
+    for (char c : key)
+    {
+        if (c == '[' || c == ']')
+        {
+            return false;
+        }
+        if (!std::isalnum(c) && c != '_')
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
+bool is_valid_value(const std::string &value)
+{
+    if (value.empty() || value.length() > 2048)
+    {
+        return false;
+    }
+    for (char c : value)
+    {
+        if (c == '[' || c == ']')
+        {
+            return false;
+        }
+        if (!std::isalnum(c) && c != '_')
+        {
+            return false;
+        }
+    }
+    return true;
+}
 
 class KVStoreClient
 {
@@ -23,6 +64,13 @@ public:
     // Get operation for retrieving a value by key
     int kv739_get(const std::string &key, std::string &value)
     {
+        // Validate the key
+        if (!is_valid_key(key))
+        {
+            std::cerr << "Invalid key. Keys must be 1-128 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+            return -1; // Failure
+        }
+
         GetRequest request;
         request.set_key(key);
 
@@ -50,6 +98,18 @@ public:
     // Put operation for storing a value and getting the old value, if any
     int kv739_put(const std::string &key, const std::string &value, std::string &old_value)
     {
+        // Validate the key and value
+        if (!is_valid_key(key))
+        {
+            std::cerr << "Invalid key. Keys must be 1-128 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+            return -1; // Failure
+        }
+        if (!is_valid_value(value))
+        {
+            std::cerr << "Invalid value. Values must be 1-2048 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+            return -1; // Failure
+        }
+
         PutRequest request;
         request.set_key(key);
         request.set_value(value);
@@ -126,6 +186,12 @@ int kv739_get(char *key, char *value)
     }
 
     std::string key_str(key);
+    // Validate the key
+    if (!is_valid_key(key_str))
+    {
+        std::cerr << "Invalid key. Keys must be 1-128 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+        return -1; // Failure
+    }
     std::string value_str;
 
     // Perform get operation
@@ -151,6 +217,17 @@ int kv739_put(char *key, char *value, char *old_value)
 
     std::string key_str(key);
     std::string value_str(value);
+    // Validate the key and value
+    if (!is_valid_key(key_str))
+    {
+        std::cerr << "Invalid key. Keys must be 1-128 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+        return -1; // Failure
+    }
+    if (!is_valid_value(value_str))
+    {
+        std::cerr << "Invalid value. Values must be 1-2048 characters and contain only letters, digits, or underscore, and cannot include '[' or ']'." << std::endl;
+        return -1; // Failure
+    }
     std::string old_value_str;
 
     // Perform put operation
