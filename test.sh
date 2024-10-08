@@ -13,7 +13,12 @@ echo "Waiting for services to be healthy..."
 sleep 10  # Wait for containers to initialize
 
 # Run the initial client test to insert data and verify
+docker compose start client
 docker compose exec client ./kv739_test
+if [ $? -ne 0 ]; then
+    echo "run general tests failed. Exiting."
+    exit 1
+fi
 echo "Initial data insert and verification complete."
 
 # Simulate server crash

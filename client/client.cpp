@@ -157,6 +157,19 @@ int kv739_init(char *server_name)
         return -1;
     }
 
+    // Perform a health check to validate the server address
+    std::string dummy_value;
+    int result = client->kv739_get("dummy_key", dummy_value);
+
+    if (result == -1)
+    {
+        std::cerr << "Failed to connect to server: " << server_address << std::endl;
+        delete client;
+        client = nullptr;
+        return -1;
+    }
+
+    std::cout << "Successfully connected to server: " << server_address << std::endl;
     return 0;
 }
 

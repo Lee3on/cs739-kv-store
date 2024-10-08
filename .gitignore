@@ -2,3 +2,4 @@
 /.vscode
 ./client/*.grpc.pb.cc
 ./client/*.pb.cc
+./.tmp.*

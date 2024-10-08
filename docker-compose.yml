@@ -23,7 +23,7 @@ services:
     networks:
       - kv-network
     environment:
-      - SERVER_ADDRESS=go-server:6666 # Set the server address to the server container
+      - SERVER_ADDRESS=go-server:1234 # Set the server address to the server container
 
 networks:
   kv-network:
