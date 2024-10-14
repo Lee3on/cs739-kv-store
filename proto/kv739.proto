@@ -10,6 +10,7 @@ service KVStoreService {
 
   // Performs a get operation and then stores the specified value.
   rpc Put(PutRequest) returns (PutResponse);
+  rpc Ping (PingRequest) returns (PingResponse);
 }
 
 // Request message for getting a value.
@@ -33,4 +34,12 @@ message PutRequest {
 message PutResponse {
   int32 status = 1; // 0 on success with old value, 1 on success without old value, -1 on failure
   string old_value = 2; // The previous value corresponding to the key, if any
+}
+
+message PingRequest {
+  // No fields needed for a basic health check
+}
+
+message PingResponse {
+  string message = 1;
 }
