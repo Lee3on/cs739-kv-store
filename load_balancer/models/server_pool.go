@@ -2,27 +2,30 @@ package models
 
 import (
 	"context"
-	"google.golang.org/grpc"
 	pb "load_balancer/proto/kv739"
 	"log"
 	"sync/atomic"
 	"time"
+
+	"google.golang.org/grpc"
 )
 
 type ServerPool struct {
-	Servers     []string
-	connections []*grpc.ClientConn
-	clients     []pb.KVStoreServiceClient
-	current     uint32
-	health      []bool
+	Servers         []string
+	connections     []*grpc.ClientConn
+	clients         []pb.KVStoreServiceClient
+	current         uint32
+	health          []bool
+	addressToClient map[string]pb.KVStoreServiceClient
 }
 
 func NewServerPool(servers []string) *ServerPool {
 	return &ServerPool{
-		Servers:     servers,
-		connections: make([]*grpc.ClientConn, len(servers)),
-		clients:     make([]pb.KVStoreServiceClient, len(servers)),
-		health:      make([]bool, len(servers)),
+		Servers:         servers,
+		connections:     make([]*grpc.ClientConn, len(servers)),
+		clients:         make([]pb.KVStoreServiceClient, len(servers)),
+		health:          make([]bool, len(servers)),
+		addressToClient: make(map[string]pb.KVStoreServiceClient),
 	}
 }
 
@@ -36,6 +39,7 @@ func (p *ServerPool) Connect() {
 
 		p.connections[i] = conn
 		p.clients[i] = pb.NewKVStoreServiceClient(conn)
+		p.addressToClient[server] = p.clients[i]
 	}
 }
 
@@ -92,4 +96,8 @@ func (p *ServerPool) HealthCheck(interval time.Duration) {
 			}
 		}
 	}
+}
+
+func (p *ServerPool) GetClientByAddress(address string) pb.KVStoreServiceClient {
+	return p.addressToClient[address]
 }

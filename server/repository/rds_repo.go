@@ -5,6 +5,8 @@ import (
 	"errors"
 )
 
+var RDSRepository *RDSRepo
+
 type RDSRepo struct {
 	db *sql.DB
 }

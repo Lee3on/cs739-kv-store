@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var MemoryRepository *MemoryRepo
+
 // cacheEntry represents a single entry in the cache.
 type cacheEntry struct {
 	key        string
@@ -116,4 +118,20 @@ func (m *MemoryRepo) startEviction() {
 		}
 		m.mu.Unlock()
 	}
+}
+
+func (m *MemoryRepo) Flush() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	for key, elem := range m.cache {
+		entry := elem.Value.(*cacheEntry)
+		value := entry.value
+		err := RDSRepository.Put(key, value)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

@@ -81,6 +81,7 @@ void test_put_overwrite()
 
     // Validate the overwrite
     char new_value[1024] = {0};
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
     kv739_get("overwrite_key", new_value);
 
     bool passed = (result == 0) && (std::string(old_value) == "initial_value") && (std::string(new_value) == "new_value");
@@ -121,6 +122,7 @@ void test_concurrent_puts()
         threads[i].join();
     }
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
     // Get the final value after concurrent puts
     char final_value[1024] = {0};
     int result = kv739_get("concurrent_key", final_value);
@@ -198,6 +200,7 @@ void test_hot_keys_performance(int num_keys, int num_requests)
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> dist(0, num_keys - 1);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
     measure_performance("10% Hot Keys Performance", num_requests, [&]()
                         {
         std::string key;
@@ -230,6 +233,7 @@ void test_uniform_distribution_performance(int num_keys, int num_requests)
     std::mt19937 gen(std::random_device{}());
     std::uniform_int_distribution<> dist(0, num_keys - 1);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
     measure_performance("Uniform Distribution Performance", num_requests, [&]()
                         {
         std::string key = uniform_keys[dist(gen)];
@@ -277,7 +281,7 @@ int main(int argc, char *argv[])
     const char *server_address_env = getenv("SERVER_ADDRESS");
 
     // If the environment variable is not set, use a default value
-    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:6666";
+    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:8080";
 
     // Initialize client with the server address
     init_client(server_address);
@@ -285,7 +289,27 @@ int main(int argc, char *argv[])
     // Run the tests
     int key_nums = 100;
     int num_requests = 10000;
-    if (argc > 1 && std::string(argv[1]) == "--test-recovery")
+    if (argc > 1 && std::string(argv[1]) == "--put")
+    {
+        test_put();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--get")
+    {
+        test_get();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--put-overwrite")
+    {
+        test_put_overwrite();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--get-non-existent-key")
+    {
+        test_get_non_existent_key();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--concurrent-puts")
+    {
+        test_concurrent_puts();
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--test-recovery")
     {
         // Run the recovery test only
         test_recovery(key_nums, num_requests);
@@ -293,13 +317,18 @@ int main(int argc, char *argv[])
     else
     {
         test_put();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         test_get();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         test_put_overwrite();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         test_get_non_existent_key();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         test_concurrent_puts();
-
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         // Performance tests
         test_hot_keys_performance(key_nums, num_requests);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // Add 100 ms sleep
         test_uniform_distribution_performance(key_nums, num_requests);
     }
 

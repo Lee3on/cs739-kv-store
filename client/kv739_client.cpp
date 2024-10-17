@@ -90,7 +90,7 @@ int main()
     const char *server_address_env = getenv("SERVER_ADDRESS");
 
     // If the environment variable is not set, use a default value
-    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:6666";
+    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:8080";
 
     // Initialize client with the server address
     init_client(server_address);

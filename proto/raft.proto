@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package raft;
+option go_package = "cs739-kv-store/proto/raft;raft";
+
+service RaftService {
+    // Sends a raft message to another node
+    rpc SendRaftMessage(RaftMessage) returns (RaftResponse);
+
+    // Streaming version to handle multiple messages
+    rpc StreamRaftMessages(stream RaftMessage) returns (stream RaftResponse);
+}
+
+message RaftMessage {
+    uint64 from = 1;
+    uint64 to = 2;
+    bytes data = 3;  // Raw raft message serialized from raftpb.Message
+}
+
+message RaftResponse {
+    bool success = 1;
+}
+
+message ShutdownNotification {
+    uint64 node_id = 1;  // The ID of the node that is shutting down
+    string message = 2;  // Optional message describing the reason for shutdown
+}

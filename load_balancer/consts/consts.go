@@ -1,5 +1,5 @@
 package consts
 
 var (
-	ServerListFileName = "./config/server_list"
+	KVServerListFileName = "./config/kv_server_list"
 )

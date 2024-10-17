@@ -27,6 +27,7 @@ type KVStoreServiceClient interface {
 	// Performs a get operation and then stores the specified value.
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
+	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
 }
 
 type kVStoreServiceClient struct {
@@ -64,6 +65,15 @@ func (c *kVStoreServiceClient) Ping(ctx context.Context, in *PingRequest, opts .
 	return out, nil
 }
 
+func (c *kVStoreServiceClient) Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error) {
+	out := new(CloseResponse)
+	err := c.cc.Invoke(ctx, "/kv739.KVStoreService/Close", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KVStoreServiceServer is the server API for KVStoreService service.
 // All implementations must embed UnimplementedKVStoreServiceServer
 // for forward compatibility
@@ -73,6 +83,7 @@ type KVStoreServiceServer interface {
 	// Performs a get operation and then stores the specified value.
 	Put(context.Context, *PutRequest) (*PutResponse, error)
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
+	Close(context.Context, *CloseRequest) (*CloseResponse, error)
 	mustEmbedUnimplementedKVStoreServiceServer()
 }
 
@@ -88,6 +99,9 @@ func (UnimplementedKVStoreServiceServer) Put(context.Context, *PutRequest) (*Put
 }
 func (UnimplementedKVStoreServiceServer) Ping(context.Context, *PingRequest) (*PingResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Ping not implemented")
+}
+func (UnimplementedKVStoreServiceServer) Close(context.Context, *CloseRequest) (*CloseResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
 }
 func (UnimplementedKVStoreServiceServer) mustEmbedUnimplementedKVStoreServiceServer() {}
 
@@ -156,6 +170,24 @@ func _KVStoreService_Ping_Handler(srv interface{}, ctx context.Context, dec func
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KVStoreService_Close_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(CloseRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVStoreServiceServer).Close(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv739.KVStoreService/Close",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVStoreServiceServer).Close(ctx, req.(*CloseRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // KVStoreService_ServiceDesc is the grpc.ServiceDesc for KVStoreService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -174,6 +206,10 @@ var KVStoreService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Ping",
 			Handler:    _KVStoreService_Ping_Handler,
+		},
+		{
+			MethodName: "Close",
+			Handler:    _KVStoreService_Close_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

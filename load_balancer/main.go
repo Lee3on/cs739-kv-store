@@ -28,7 +28,7 @@ func main() {
 	flag.StringVar(&serverIp, "ip", "localhost", "Server IP")
 	flag.Parse()
 
-	file, err := os.Open(consts.ServerListFileName)
+	file, err := os.Open(consts.KVServerListFileName)
 	if err != nil {
 		fmt.Println("Error opening config file:", err)
 		return
