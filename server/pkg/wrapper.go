@@ -3,7 +3,6 @@ package pkg
 import (
 	"context"
 	"fmt"
-	"log"
 	"net/http"
 	"net/url"
 	"os"
@@ -47,7 +46,7 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan string, comm
 	}
 
 	storage := raft.NewMemoryStorage()
-	waldir := fmt.Sprintf("linear-kv/wal/%d", id)
+	waldir := fmt.Sprintf("./storage/wal/%d", id)
 	oldwal := wal.Exist(waldir)
 	if !wal.Exist(waldir) {
 		err := os.Mkdir(waldir, 0705)
@@ -77,7 +76,7 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan string, comm
 		HeartbeatTick:   1,
 		Storage:         storage,
 		MaxSizePerMsg:   4096,
-		MaxInflightMsgs: 256,
+		MaxInflightMsgs: 9192,
 	}
 	if oldwal {
 		wrapper.node = raft.RestartNode(config)
@@ -104,7 +103,7 @@ func NewWrapper(id uint64, peers map[uint64]string, proposeC <-chan string, comm
 	wrapper.wal = wal0
 	wrapper.storage = storage
 	wrapper.transport = transport
-	wrapper.ticker = time.NewTicker(5 * time.Second)
+	wrapper.ticker = time.NewTicker(1 * time.Second)
 	wrapper.proposeC = proposeC
 	wrapper.commitC = commitC
 
@@ -133,10 +132,10 @@ func (w *Wrapper) Run() {
 	for {
 		select {
 		case <-w.ticker.C:
-			log.Printf("[INFO] %d tick", w.id)
+			//log.Printf("[INFO] %d tick", w.id)
 			w.node.Tick()
 		case rd := <-w.node.Ready():
-			log.Printf("[INFO] %d handle ready %v", w.id, rd)
+			//log.Printf("[INFO] %d handle ready %v", w.id, rd)
 			w.wal.Save(rd.HardState, rd.Entries)
 			w.storage.Append(rd.Entries)
 			w.transport.Send(rd.Messages)

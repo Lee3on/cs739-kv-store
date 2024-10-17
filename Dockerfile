@@ -41,7 +41,7 @@ COPY ./server/server ./load_balancer/load_balancer run_server.sh ./proto/kv739.p
 COPY ./config ./config
 
 RUN mkdir -p storage
-RUN mkdir -p storage/raft_log
+RUN mkdir -p storage/wal
 
 # Generate C++ code from the proto file
 RUN mkdir -p generated

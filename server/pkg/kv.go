@@ -44,7 +44,7 @@ type KV struct {
 }
 
 func NewKV(id uint64, proposeC chan<- string, commitC <-chan []string) (*KV, error) {
-	storagePath := fmt.Sprintf("linear-kv/storage/%d", id)
+	storagePath := fmt.Sprintf("./storage/%d", id)
 	storage, err := NewStorage(storagePath)
 	if err != nil {
 		return nil, err
@@ -80,7 +80,13 @@ func (kv *KV) IncIndex() error {
 	return nil
 }
 
-func (kv *KV) Put(k string, v string) bool {
+func (kv *KV) Put(k string, v string) (string, bool, bool) {
+	// Get old value
+	isError, oldValue, found := kv.Get(k)
+	if !isError {
+		return oldValue, found, false
+	}
+
 	waitCh := make(chan status)
 
 	kv.mu.Lock()
@@ -110,7 +116,7 @@ func (kv *KV) Put(k string, v string) bool {
 	kv.mu.Unlock()
 
 	s := <-waitCh
-	return s.s
+	return oldValue, found, s.s
 }
 
 func (kv *KV) Get(k string) (bool, string, bool) {
@@ -154,7 +160,7 @@ func (kv *KV) readCommits() {
 				log.Fatalf("[ERROR] %d read commits with error %v", kv.id, err)
 			}
 
-			log.Printf("[INFO] %d handle %s", kv.id, e)
+			//log.Printf("[INFO] %d handle %s", kv.id, e)
 
 			var v string
 			var ok bool

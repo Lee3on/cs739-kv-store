@@ -42,9 +42,17 @@ func initRaftConfig() {
 	}
 	defer file.Close()
 
+	id := uint64(1)
+	raftPeers = make(map[uint64]string)
+	proposeCs = make(map[uint64]chan string)
+	commitCs = make(map[uint64]chan []string)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
-		raftAddresses = append(raftAddresses, scanner.Text())
+		//raftAddresses = append(raftAddresses, scanner.Text())
+		raftPeers[id] = scanner.Text()
+		proposeCs[id] = make(chan string)
+		commitCs[id] = make(chan []string)
+		id++
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -62,12 +70,12 @@ func initKVConfig() {
 	defer file.Close()
 
 	scanner := bufio.NewScanner(file)
-	raftToKV = make(map[string]string)
-	index := 0
+	//raftToKV = make(map[string]string)
+	//index := 0
 	for scanner.Scan() {
 		kvAddresses = append(kvAddresses, scanner.Text())
-		raftToKV[raftAddresses[index]] = kvAddresses[index]
-		index++
+		//raftToKV[raftAddresses[index]] = kvAddresses[index]
+		//index++
 	}
 
 	if err := scanner.Err(); err != nil {

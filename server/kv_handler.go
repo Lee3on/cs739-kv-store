@@ -3,10 +3,9 @@ package main
 import (
 	"context"
 	"cs739-kv-store/consts"
+	"cs739-kv-store/pkg"
 	pb "cs739-kv-store/proto/kv739" // Import the generated package
-	server_raft "cs739-kv-store/raft"
 	"cs739-kv-store/repository"
-	"cs739-kv-store/service"
 	"google.golang.org/grpc"
 	"log"
 	"net"
@@ -19,14 +18,23 @@ import (
 type server struct {
 	pb.UnimplementedKVStoreServiceServer
 	mutex sync.Mutex
-	node  *server_raft.Node
+	//node  *server_raft.Node
+	kv *pkg.KV
 }
 
 // Get Implement the Get method.
 func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
-	value, found, err := service.NewGetService(repository.MemoryRepository, repository.RDSRepository).GetByKey(ctx, req.Key)
-	if err != nil {
-		return &pb.GetResponse{Status: consts.InternalError}, err
+	//value, found, err := service.NewGetService(repository.MemoryRepository, repository.RDSRepository).GetByKey(ctx, req.Key)
+	//if err != nil {
+	//	return &pb.GetResponse{Status: consts.InternalError}, err
+	//}
+	//if !found {
+	//	return &pb.GetResponse{Status: consts.KeyNotFound}, nil
+	//}
+
+	ok, value, found := s.kv.Get(req.Key)
+	if !ok {
+		return &pb.GetResponse{Status: consts.InternalError}, nil
 	}
 	if !found {
 		return &pb.GetResponse{Status: consts.KeyNotFound}, nil
@@ -37,20 +45,27 @@ func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 
 // Put Implement the Put method.
 func (s *server) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, error) {
-	log.Printf("Storing key: %s with value: %s\n", req.Key, req.Value)
-	leaderAddress, err := s.node.HandlePutRequest(req)
-	if err != nil {
-		return &pb.PutResponse{Status: consts.InternalError}, err
-	}
-	if leaderAddress != "" {
-		log.Printf("Redirecting to leader: %s\n", raftToKV[leaderAddress])
-		return &pb.PutResponse{Status: consts.Redirect, LeaderAddress: raftToKV[leaderAddress]}, nil
-	}
+	//log.Printf("Storing key: %s with value: %s\n", req.Key, req.Value)
+	//leaderAddress, err := s.node.HandlePutRequest(req)
+	//if err != nil {
+	//	return &pb.PutResponse{Status: consts.InternalError}, err
+	//}
+	//if leaderAddress != "" {
+	//	log.Printf("Redirecting to leader: %s\n", raftToKV[leaderAddress])
+	//	return &pb.PutResponse{Status: consts.Redirect, LeaderAddress: raftToKV[leaderAddress]}, nil
+	//}
 
 	log.Printf("Processing put request for key: %s, value: %s\n", req.Key, req.Value)
-	oldValue, found, err := service.NewPutService(repository.MemoryRepository, repository.RDSRepository).Put(ctx, req.Key, req.Value)
-	if err != nil {
-		return &pb.PutResponse{Status: consts.InternalError}, err
+	//oldValue, found, err := service.NewPutService(repository.MemoryRepository, repository.RDSRepository).Put(ctx, req.Key, req.Value)
+	//if err != nil {
+	//	return &pb.PutResponse{Status: consts.InternalError}, err
+	//}
+	//if !found {
+	//	return &pb.PutResponse{Status: consts.KeyNotFound}, nil
+	//}
+	oldValue, found, ok := s.kv.Put(req.Key, req.Value)
+	if !ok {
+		return &pb.PutResponse{Status: consts.InternalError}, nil
 	}
 	if !found {
 		return &pb.PutResponse{Status: consts.KeyNotFound}, nil
@@ -62,7 +77,8 @@ func (s *server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingRespons
 	return &pb.PingResponse{Message: "pong"}, nil
 }
 
-func startKVServer(node *server_raft.Node, address string) {
+func startKVServer(kv *pkg.KV, address string) {
+	log.Printf("Starting KV server on address %s...\n", address)
 	lis, err := net.Listen("tcp", address)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
@@ -70,8 +86,8 @@ func startKVServer(node *server_raft.Node, address string) {
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterKVStoreServiceServer(grpcServer, &server{
-		node:  node,
 		mutex: sync.Mutex{},
+		kv:    kv,
 	})
 
 	log.Printf("Server is running on address %s...\n", address)
