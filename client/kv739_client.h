@@ -33,6 +33,6 @@ int kv739_put(char *key, char *value, char *old_value);
 // If clean == 1, then the server can flush state and notify other machines it is failing.
 // If clean == 0, then the server should terminate immediately.
 // Returns 0 on success and -1 on failure.
-int int kv739_die(char * server_name, int clean);
+int kv739_die(char * server_name, int clean);
 
 #endif

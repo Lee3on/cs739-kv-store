@@ -277,7 +277,7 @@ int main(int argc, char *argv[])
     const char *server_address_env = getenv("SERVER_ADDRESS");
 
     // If the environment variable is not set, use a default value
-    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:6666";
+    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:8080";
 
     // Initialize client with the server address
     init_client(server_address);
@@ -289,6 +289,22 @@ int main(int argc, char *argv[])
     {
         // Run the recovery test only
         test_recovery(key_nums, num_requests);
+    } else if (argc > 1 && std::string(argv[1]) == "--put")
+    {
+        test_put();
+    }
+    else if (argc == 3 && std::string(argv[1]) == "--close")
+    {
+        std::string server_name = argv[2];
+        int result = kv739_die(const_cast<char *>(server_name.c_str()), 1);
+        if (result == 0)
+        {
+            std::cout << "Server successfully closed." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to close the server." << std::endl;
+        }
     }
     else
     {

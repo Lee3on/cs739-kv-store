@@ -1,72 +1,48 @@
 package main
 
 import (
-	"cs739-kv-store/consts"
 	pb "cs739-kv-store/proto/kv739"
 	"cs739-kv-store/repository"
 	"database/sql"
 	"flag"
-	"log"
-	"net"
-	"strconv"
-	"time"
-
 	_ "github.com/mattn/go-sqlite3"
 	"google.golang.org/grpc"
+	"log"
+	"net"
+	"sync"
 )
 
 var (
-	port     int
-	serverIp string
+	port        int
+	serverIp    string
+	nodeID      uint64
+	kvAddresses []string
 
 	db         *sql.DB
 	memoryRepo *repository.MemoryRepo
 	rdsRepo    *repository.RDSRepo
 )
 
-func initDB() {
-	memoryRepo = repository.NewMemoryRepo(consts.KVStoreCapacity, 3*time.Second)
-
-	var err error
-	db, err = sql.Open("sqlite3", "kv739.db")
-	if err != nil {
-		log.Fatalf("Failed to open database: %v", err)
-	}
-
-	// Create table if it doesn't exist
-	createTableSQL := `CREATE TABLE IF NOT EXISTS kv (
-        key TEXT PRIMARY KEY,
-        value TEXT
-    );`
-
-	_, err = db.Exec(createTableSQL)
-	if err != nil {
-		log.Fatalf("Failed to create table: %v", err)
-	}
-	rdsRepo = repository.NewRDSRepo(db)
-}
-
 func main() {
 	// Parse command-line arguments
 	flag.IntVar(&port, "port", 50051, "Server port")
 	flag.StringVar(&serverIp, "ip", "localhost", "Server IP")
+	flag.Uint64Var(&nodeID, "id", 1, "Node ID")
 	flag.Parse()
 
-	initDB()
+	initKVConfig()
+	initDB(nodeID)
 	defer db.Close()
 
-	lis, err := net.Listen("tcp", serverIp+":"+strconv.Itoa(port))
+	lis, err := net.Listen("tcp", kvAddresses[nodeID-1])
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterKVStoreServiceServer(grpcServer, &server{
-		memoryRepo: memoryRepo,
-		rdsRepo:    rdsRepo,
-	})
+	pb.RegisterKVStoreServiceServer(grpcServer, &server{nodeID: nodeID, kvAddresses: kvAddresses, mutex: sync.Mutex{}})
 
-	log.Printf("Server is running on port %d...\n", port)
+	log.Printf("Server is running on address %s...\n", kvAddresses[nodeID-1])
 	if err := grpcServer.Serve(lis); err != nil {
 		log.Fatalf("Failed to serve: %v", err)
 	}

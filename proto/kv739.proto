@@ -11,6 +11,7 @@ service KVStoreService {
   // Performs a get operation and then stores the specified value.
   rpc Put(PutRequest) returns (PutResponse);
   rpc Ping (PingRequest) returns (PingResponse);
+  rpc Close (CloseRequest) returns (CloseResponse);
 }
 
 // Request message for getting a value.
@@ -42,4 +43,13 @@ message PingRequest {
 
 message PingResponse {
   string message = 1;
+}
+
+message CloseRequest {
+  string server_name = 1;
+  int32 clean = 2;
+}
+
+message CloseResponse {
+  int32 status = 1;
 }

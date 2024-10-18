@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+package kv739;
+option go_package = "cs739-kv-store/proto/kv739;kv739";
+
+// Define the service for key-value operations.
+service KVStoreService {
+  // Retrieves the value corresponding to a key.
+  rpc Get(GetRequest) returns (GetResponse);
+
+  // Performs a get operation and then stores the specified value.
+  rpc Put(PutRequest) returns (PutResponse);
+  rpc Ping (PingRequest) returns (PingResponse);
+  rpc Close (CloseRequest) returns (CloseResponse);
+}
+
+// Request message for getting a value.
+message GetRequest {
+  string key = 1; // Key to look up
+}
+
+// Response message for getting a value.
+message GetResponse {
+  int32 status = 1; // 0 on success, 1 if the key is not present, -1 on failure
+  string value = 2; // The value corresponding to the key
+}
+
+// Request message for putting a value.
+message PutRequest {
+  string key = 1;   // Key to set
+  string value = 2; // Value to set
+}
+
+// Response message for putting a value.
+message PutResponse {
+  int32 status = 1; // 0 on success with old value, 1 on success without old value, -1 on failure
+  string old_value = 2; // The previous value corresponding to the key, if any
+}
+
+message PingRequest {
+  // No fields needed for a basic health check
+}
+
+message PingResponse {
+  string message = 1;
+}
+
+message CloseRequest {
+  string server_name = 1;
+  int32 clean = 2;
+}
+
+message CloseResponse {
+  int32 status = 1;
+}

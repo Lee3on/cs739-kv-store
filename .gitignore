@@ -3,3 +3,4 @@
 ./client/*.grpc.pb.cc
 ./client/*.pb.cc
 ./.tmp.*
+./project2-G6/

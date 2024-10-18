@@ -8,6 +8,8 @@
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
+using kv739::CloseRequest;
+using kv739::CloseResponse;
 using kv739::GetRequest;
 using kv739::GetResponse;
 using kv739::KVStoreService;
@@ -76,7 +78,7 @@ public:
 
         GetResponse response;
         ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
 
         Status status = stub_->Get(&context, request, &response);
 
@@ -116,7 +118,7 @@ public:
 
         PutResponse response;
         ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
 
         Status status = stub_->Put(&context, request, &response);
 
@@ -128,6 +130,21 @@ public:
 
         old_value = response.old_value();
         return response.status(); // 0 if old value exists, 1 if no old value
+    }
+
+    int kv739_die(const std::string &server_name, int clean)
+    {
+        CloseRequest request;
+        request.set_server_name(server_name);
+        request.set_clean(clean);
+
+        CloseResponse response;
+        ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
+
+        Status status = stub_->Close(&context, request, &response);
+
+        return response.status();
     }
 
 private:
@@ -251,6 +268,20 @@ int kv739_put(char *key, char *value, char *old_value)
         // Copy the old value to the provided buffer
         strcpy(old_value, old_value_str.c_str());
     }
+
+    return result;
+}
+
+int kv739_die(char *server_name, int clean)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string server_address(server_name);
+    int result = client->kv739_die(server_address, clean);
 
     return result;
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var MemoryRepository *MemoryRepo
+
 // cacheEntry represents a single entry in the cache.
 type cacheEntry struct {
 	key        string
