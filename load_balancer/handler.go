@@ -38,8 +38,10 @@ func (s *server) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, 
 	var finalErr error
 	found := false
 	oldValue := ""
+	count := 0
 	for i, client := range serverPool.Clients {
 		if !serverPool.Health[i] {
+			count++
 			continue
 		}
 		resp, err := client.Put(ctx, req)
@@ -54,7 +56,7 @@ func (s *server) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, 
 		time.Sleep(time.Microsecond * 10)
 	}
 
-	if finalErr != nil {
+	if finalErr != nil || count == len(serverPool.Clients) {
 		return &pb.PutResponse{Status: int32(consts.InternalError)}, finalErr
 	}
 	if !found {
@@ -70,11 +72,7 @@ func (s *server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingRespons
 func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResponse, error) {
 	log.Printf("Closing connection to server: %s\n", req.ServerName)
 	client := serverPool.GetClientByAddress(req.ServerName)
-	_, err := client.Close(ctx, req)
-	if err != nil {
-		log.Printf("Error closing connection to server: %s\n", req.ServerName)
-		return &pb.CloseResponse{Status: int32(consts.InternalError)}, err
-	}
+	client.Close(ctx, req)
 	serverPool.Health[serverPool.AddressToIndex[req.ServerName]] = false
 	return &pb.CloseResponse{Status: int32(consts.Success)}, nil
 }

@@ -1,7 +1,7 @@
 def generate_server_lists():
     kv_start_port = 6000
     raft_start_port = 5000
-    num_servers = 100
+    num_servers = 50
 
     kv_file_name = "./config/kv_server_list"
     raft_file_name = "./config/raft_server_list"

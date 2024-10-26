@@ -54,7 +54,7 @@ RUN g++ -std=c++11 client.cpp kv739_client.cpp \
     -o kv739_client
 
 # Compile the test code
-RUN g++ -std=c++11 client.cpp kv739_test.cpp \
+RUN g++ -std=c++11 client.cpp kv739_test_1.cpp \
     ./generated/kv739.pb.cc \
     ./generated/kv739.grpc.pb.cc \
     -I./generated \
