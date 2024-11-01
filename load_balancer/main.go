@@ -1,16 +1,15 @@
 package main
 
 import (
-	"bufio"
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
 	"load_balancer/consts"
 	"load_balancer/models"
 	pb "load_balancer/proto/kv739"
+	"load_balancer/utils"
 	"log"
 	"net"
-	"os"
 	"strconv"
 	"time"
 )
@@ -28,25 +27,13 @@ func main() {
 	flag.StringVar(&serverIp, "ip", "localhost", "Server IP")
 	flag.Parse()
 
-	file, err := os.Open(consts.KVServerListFileName)
-	if err != nil {
-		fmt.Println("Error opening config file:", err)
-		return
-	}
-	defer file.Close()
-
-	var servers []string
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		servers = append(servers, scanner.Text())
+	var IDs []uint64
+	servers := make(map[uint64]string)
+	if err := utils.ReadConfigFile(consts.KVServerListFileName, &IDs, servers); err != nil {
+		log.Fatalf("Failed to read config file: %v", err)
 	}
 
-	if err := scanner.Err(); err != nil {
-		fmt.Println("Error reading config file:", err)
-		return
-	}
-
-	serverPool = models.NewServerPool(servers)
+	serverPool = models.NewServerPool(IDs, servers)
 	serverPool.Connect()
 	defer serverPool.Close()
 

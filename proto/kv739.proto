@@ -12,6 +12,8 @@ service KVStoreService {
   rpc Put(PutRequest) returns (PutResponse);
   rpc Ping (PingRequest) returns (PingResponse);
   rpc Close (CloseRequest) returns (CloseResponse);
+  rpc Start (StartRequest) returns (StartResponse);
+  rpc Leave (LeaveRequest) returns (LeaveResponse);
 }
 
 // Request message for getting a value.
@@ -52,5 +54,23 @@ message CloseRequest {
 }
 
 message CloseResponse {
+  int32 status = 1;
+}
+
+message StartRequest {
+  string server_name = 1;
+  int32 new = 2;
+}
+
+message StartResponse {
+  int32 status = 1;
+}
+
+message LeaveRequest {
+  string server_name = 1;
+  int32 clean = 2;
+}
+
+message LeaveResponse {
   int32 status = 1;
 }

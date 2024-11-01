@@ -314,6 +314,45 @@ int main(int argc, char *argv[])
         // Run the recovery test only
         test_recovery(key_nums, num_requests);
     }
+    else if (argc == 3 && std::string(argv[1]) == "--close")
+    {
+        std::string server_name = argv[2];
+        int result = kv739_die(const_cast<char *>(server_name.c_str()), 1);
+        if (result == 0)
+        {
+            std::cout << "Server successfully closed." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to close the server." << std::endl;
+        }
+    }
+    else if (argc == 3 && std::string(argv[1]) == "--start")
+    {
+        std::string server_name = argv[2];
+        int result = kv739_start(const_cast<char *>(server_name.c_str()), 1);
+        if (result == 0)
+        {
+            std::cout << "Server successfully started." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to start the server." << std::endl;
+        }
+    }
+    else if (argc == 3 && std::string(argv[1]) == "--leave")
+    {
+        std::string server_name = argv[2];
+        int result = kv739_leave(const_cast<char *>(server_name.c_str()), 1);
+        if (result == 0)
+        {
+            std::cout << "Server successfully left." << std::endl;
+        }
+        else
+        {
+            std::cerr << "Failed to remove the server." << std::endl;
+        }
+    }
     else
     {
         test_put();

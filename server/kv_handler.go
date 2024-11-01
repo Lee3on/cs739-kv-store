@@ -3,8 +3,8 @@ package main
 import (
 	"context"
 	"cs739-kv-store/consts"
-	"cs739-kv-store/pkg"
 	pb "cs739-kv-store/proto/kv739" // Import the generated package
+	"cs739-kv-store/raft"
 	"cs739-kv-store/repository"
 	"google.golang.org/grpc"
 	"log"
@@ -19,7 +19,28 @@ type server struct {
 	pb.UnimplementedKVStoreServiceServer
 	mutex sync.Mutex
 	//node  *server_raft.Node
-	kv *pkg.KV
+	kv          *repository.KV
+	raftWrapper *raft.Wrapper
+}
+
+func startKVServer(kv *repository.KV, address string, raftWrapper *raft.Wrapper) {
+	log.Printf("Starting KV server on address %s...\n", address)
+	lis, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Fatalf("Failed to listen: %v", err)
+	}
+
+	grpcServer := grpc.NewServer()
+	pb.RegisterKVStoreServiceServer(grpcServer, &server{
+		mutex:       sync.Mutex{},
+		kv:          kv,
+		raftWrapper: raftWrapper,
+	})
+
+	log.Printf("Server is running on address %s...\n", address)
+	if err := grpcServer.Serve(lis); err != nil {
+		log.Fatalf("Failed to serve: %v", err)
+	}
 }
 
 // Get Implement the Get method.
@@ -63,6 +84,11 @@ func (s *server) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, 
 	//if !found {
 	//	return &pb.PutResponse{Status: consts.KeyNotFound}, nil
 	//}
+	if !s.raftWrapper.IsLeader() {
+		// Redirect client to the leader
+		leader := s.raftWrapper.GetLeader()
+		return &pb.PutResponse{Status: consts.Redirect, LeaderAddress: kvAddresses[leader-1]}, nil
+	}
 	oldValue, found, ok := s.kv.Put(req.Key, req.Value)
 	if !ok {
 		return &pb.PutResponse{Status: consts.InternalError}, nil
@@ -77,25 +103,6 @@ func (s *server) Ping(ctx context.Context, req *pb.PingRequest) (*pb.PingRespons
 	return &pb.PingResponse{Message: "pong"}, nil
 }
 
-func startKVServer(kv *pkg.KV, address string) {
-	log.Printf("Starting KV server on address %s...\n", address)
-	lis, err := net.Listen("tcp", address)
-	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
-	}
-
-	grpcServer := grpc.NewServer()
-	pb.RegisterKVStoreServiceServer(grpcServer, &server{
-		mutex: sync.Mutex{},
-		kv:    kv,
-	})
-
-	log.Printf("Server is running on address %s...\n", address)
-	if err := grpcServer.Serve(lis); err != nil {
-		log.Fatalf("Failed to serve: %v", err)
-	}
-}
-
 func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResponse, error) {
 	if req.Clean == 1 {
 		// Graceful termination
@@ -105,14 +112,8 @@ func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResp
 		s.mutex.Lock()
 
 		// Flush any in-memory state (this is just an example, actual logic would depend on your state handling)
-		err := s.flushState()
-		if err != nil {
-			log.Printf("Failed to flush state: %v", err)
-			return &pb.CloseResponse{Status: -1}, err
-		}
-
-		// Notify other services about the shutdown (if needed)
-		s.notifyOtherServices()
+		s.kv.FlushState()
+		s.raftWrapper.Shutdown()
 
 		// Log shutdown and exit after a short delay to allow cleanup
 		log.Println("Shutting down gracefully...")
@@ -121,7 +122,7 @@ func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResp
 			os.Exit(0)                  // Exit after cleanup
 		}()
 
-		return &pb.CloseResponse{Status: 0}, nil
+		return &pb.CloseResponse{Status: consts.Success}, nil
 	} else {
 		// Immediate termination
 		log.Println("Immediate termination initiated...")
@@ -130,21 +131,52 @@ func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResp
 		go func() {
 			os.Exit(0)
 		}()
-		return &pb.CloseResponse{Status: 0}, nil
+		return &pb.CloseResponse{Status: consts.Success}, nil
 	}
 }
 
-func (s *server) flushState() error {
-	// Implement logic to persist in-memory state to disk or DB
-	log.Println("Flushing in-memory state to persistent storage...")
-	return repository.MemoryRepository.Flush()
+func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResponse, error) {
+	// Start the cluster
+	if req.New != 1 {
+		return &pb.StartResponse{Status: consts.InternalError}, nil
+	}
+	if err := s.raftWrapper.Start(); err != nil {
+		return &pb.StartResponse{Status: consts.InternalError}, err
+	}
+	return &pb.StartResponse{Status: consts.Success}, nil
 }
 
-// notifyOtherServices simulates notifying other nodes about the shutdown
-func (s *server) notifyOtherServices() {
-	// Implement logic to notify other nodes (if required)
-	log.Println("Notifying other services about the shutdown...")
-	// Simulate delay for notifications
-	time.Sleep(500 * time.Millisecond)
-	log.Println("Other services notified successfully.")
+func (s *server) Leave(ctx context.Context, req *pb.LeaveRequest) (*pb.LeaveResponse, error) {
+	// Leave the cluster
+	if err := s.raftWrapper.Remove(); err != nil {
+		return &pb.LeaveResponse{Status: consts.InternalError}, err
+	}
+	if req.Clean == 1 {
+		// Graceful termination
+		log.Println("Graceful termination initiated...")
+
+		// Lock to prevent new requests while shutting down
+		s.mutex.Lock()
+
+		// Flush any in-memory state (this is just an example, actual logic would depend on your state handling)
+		s.kv.FlushState()
+		s.raftWrapper.Shutdown()
+
+		// Log shutdown and exit after a short delay to allow cleanup
+		log.Println("Shutting down gracefully...")
+		go func() {
+			time.Sleep(1 * time.Second) // Give some time for cleanup
+			os.Exit(0)                  // Exit after cleanup
+		}()
+
+		return &pb.LeaveResponse{Status: consts.Success}, nil
+	}
+	// Immediate termination
+	log.Println("Immediate termination initiated...")
+
+	// Terminate the process immediately without flushing state or notifying others
+	go func() {
+		os.Exit(0)
+	}()
+	return &pb.LeaveResponse{Status: consts.Success}, nil
 }

@@ -14,12 +14,6 @@ gen_go:
     	--go-grpc_out=./server/proto/kv739 --go-grpc_opt=module=cs739-kv-store/proto/kv739 \
     	proto/kv739.proto
 	cp ./server/proto/kv739/* ./load_balancer/proto/kv739/
-	protoc \
-    	--go_out=./server/proto/raft \
-    	--go_opt=module=cs739-kv-store/proto/raft \
-    	--go-grpc_out=./server/proto/raft --go-grpc_opt=module=cs739-kv-store/proto/raft \
-    	proto/raft.proto
-	cp ./server/proto/raft/* ./load_balancer/proto/raft/
 
 build_image: clean
 	docker build -t kv739 .

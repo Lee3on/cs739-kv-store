@@ -28,6 +28,8 @@ type KVStoreServiceClient interface {
 	Put(ctx context.Context, in *PutRequest, opts ...grpc.CallOption) (*PutResponse, error)
 	Ping(ctx context.Context, in *PingRequest, opts ...grpc.CallOption) (*PingResponse, error)
 	Close(ctx context.Context, in *CloseRequest, opts ...grpc.CallOption) (*CloseResponse, error)
+	Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error)
+	Leave(ctx context.Context, in *LeaveRequest, opts ...grpc.CallOption) (*LeaveResponse, error)
 }
 
 type kVStoreServiceClient struct {
@@ -74,6 +76,24 @@ func (c *kVStoreServiceClient) Close(ctx context.Context, in *CloseRequest, opts
 	return out, nil
 }
 
+func (c *kVStoreServiceClient) Start(ctx context.Context, in *StartRequest, opts ...grpc.CallOption) (*StartResponse, error) {
+	out := new(StartResponse)
+	err := c.cc.Invoke(ctx, "/kv739.KVStoreService/Start", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *kVStoreServiceClient) Leave(ctx context.Context, in *LeaveRequest, opts ...grpc.CallOption) (*LeaveResponse, error) {
+	out := new(LeaveResponse)
+	err := c.cc.Invoke(ctx, "/kv739.KVStoreService/Leave", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // KVStoreServiceServer is the server API for KVStoreService service.
 // All implementations must embed UnimplementedKVStoreServiceServer
 // for forward compatibility
@@ -84,6 +104,8 @@ type KVStoreServiceServer interface {
 	Put(context.Context, *PutRequest) (*PutResponse, error)
 	Ping(context.Context, *PingRequest) (*PingResponse, error)
 	Close(context.Context, *CloseRequest) (*CloseResponse, error)
+	Start(context.Context, *StartRequest) (*StartResponse, error)
+	Leave(context.Context, *LeaveRequest) (*LeaveResponse, error)
 	mustEmbedUnimplementedKVStoreServiceServer()
 }
 
@@ -102,6 +124,12 @@ func (UnimplementedKVStoreServiceServer) Ping(context.Context, *PingRequest) (*P
 }
 func (UnimplementedKVStoreServiceServer) Close(context.Context, *CloseRequest) (*CloseResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method Close not implemented")
+}
+func (UnimplementedKVStoreServiceServer) Start(context.Context, *StartRequest) (*StartResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Start not implemented")
+}
+func (UnimplementedKVStoreServiceServer) Leave(context.Context, *LeaveRequest) (*LeaveResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method Leave not implemented")
 }
 func (UnimplementedKVStoreServiceServer) mustEmbedUnimplementedKVStoreServiceServer() {}
 
@@ -188,6 +216,42 @@ func _KVStoreService_Close_Handler(srv interface{}, ctx context.Context, dec fun
 	return interceptor(ctx, in, info, handler)
 }
 
+func _KVStoreService_Start_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(StartRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVStoreServiceServer).Start(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv739.KVStoreService/Start",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVStoreServiceServer).Start(ctx, req.(*StartRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _KVStoreService_Leave_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(LeaveRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(KVStoreServiceServer).Leave(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kv739.KVStoreService/Leave",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(KVStoreServiceServer).Leave(ctx, req.(*LeaveRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // KVStoreService_ServiceDesc is the grpc.ServiceDesc for KVStoreService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -210,6 +274,14 @@ var KVStoreService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "Close",
 			Handler:    _KVStoreService_Close_Handler,
+		},
+		{
+			MethodName: "Start",
+			Handler:    _KVStoreService_Start_Handler,
+		},
+		{
+			MethodName: "Leave",
+			Handler:    _KVStoreService_Leave_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

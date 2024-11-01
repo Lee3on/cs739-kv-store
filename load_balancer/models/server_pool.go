@@ -11,41 +11,43 @@ import (
 )
 
 type ServerPool struct {
-	Servers         []string
-	connections     []*grpc.ClientConn
-	clients         []pb.KVStoreServiceClient
+	IDs             []uint64
+	IdToServers     map[uint64]string
+	IdToConnections map[uint64]*grpc.ClientConn
+	IdToClient      map[uint64]pb.KVStoreServiceClient
 	current         uint32
-	health          []bool
-	addressToClient map[string]pb.KVStoreServiceClient
+	Health          map[uint64]bool
+	AddressToID     map[string]uint64
 }
 
-func NewServerPool(servers []string) *ServerPool {
+func NewServerPool(IDs []uint64, servers map[uint64]string) *ServerPool {
 	return &ServerPool{
-		Servers:         servers,
-		connections:     make([]*grpc.ClientConn, len(servers)),
-		clients:         make([]pb.KVStoreServiceClient, len(servers)),
-		health:          make([]bool, len(servers)),
-		addressToClient: make(map[string]pb.KVStoreServiceClient),
+		IDs:             IDs,
+		IdToServers:     servers,
+		IdToConnections: make(map[uint64]*grpc.ClientConn, len(servers)),
+		IdToClient:      make(map[uint64]pb.KVStoreServiceClient, len(servers)),
+		Health:          make(map[uint64]bool, len(servers)),
+		AddressToID:     make(map[string]uint64),
 	}
 }
 
 func (p *ServerPool) Connect() {
 	// Connect to all servers in the server list
-	for i, server := range p.Servers {
+	for id, server := range p.IdToServers {
 		conn, err := grpc.Dial(server, grpc.WithInsecure())
 		if err != nil {
 			log.Fatalf("Failed to connect to server: %v", err)
 		}
 
-		p.connections[i] = conn
-		p.clients[i] = pb.NewKVStoreServiceClient(conn)
-		p.addressToClient[server] = p.clients[i]
+		p.IdToConnections[id] = conn
+		p.IdToClient[id] = pb.NewKVStoreServiceClient(conn)
+		p.AddressToID[server] = id
 	}
 }
 
-// Close closes all connections to servers in the pool
+// Close closes all IdToConnections to servers in the pool
 func (p *ServerPool) Close() {
-	for _, conn := range p.connections {
+	for _, conn := range p.IdToConnections {
 		if err := conn.Close(); err != nil {
 			log.Printf("Failed to close connection: %v", err)
 		}
@@ -55,19 +57,20 @@ func (p *ServerPool) Close() {
 func (p *ServerPool) getNextServer() pb.KVStoreServiceClient {
 	count := 0
 	for {
-		if count == len(p.Servers) {
+		if count == len(p.IdToServers) {
 			log.Fatalf("All servers are unhealthy")
 		}
 		// Atomically increment and get the next server index
 		next := atomic.AddUint32(&p.current, 1)
-		index := next % uint32(len(p.clients))
+		index := next % uint32(len(p.IDs))
+		id := p.IDs[index]
 
 		// Check if the server is healthy
-		if p.health[index] {
-			return p.clients[index]
+		if p.Health[id] {
+			return p.IdToClient[id]
 		}
 		// If not healthy, continue to the next server
-		log.Printf("Skipping unhealthy server: %s\n", p.Servers[index])
+		log.Printf("Skipping unhealthy server: %s\n", p.IdToServers[id])
 		count += 1
 	}
 }
@@ -76,28 +79,59 @@ func (p *ServerPool) LoadBalance() pb.KVStoreServiceClient {
 	return p.getNextServer()
 }
 
-// HealthCheck runs a periodic health check on all servers
+// HealthCheck runs a periodic Health check on all servers
 func (p *ServerPool) HealthCheck(interval time.Duration) {
 	for {
 		time.Sleep(interval)
-		for i, client := range p.clients {
-			// Perform a health check on the server (using a Ping method or similar)
+		for id, client := range p.IdToClient {
+			// Perform a Health check on the server (using a Ping method or similar)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			resp, err := client.Ping(ctx, &pb.PingRequest{})
 			cancel()
 
-			// Update health status based on response
+			// Update Health status based on response
 			if err == nil && resp.GetMessage() == "pong" {
-				log.Printf("Server %s is healthy", p.Servers[i])
-				p.health[i] = true
+				log.Printf("Server %s is healthy", p.IdToServers[id])
+				p.Health[id] = true
 			} else {
-				log.Printf("Server %s is unhealthy: err=%v, message=%s", p.Servers[i], err, resp.GetMessage())
-				p.health[i] = false
+				log.Printf("Server %s is unhealthy: err=%v, message=%s", p.IdToServers[id], err, resp.GetMessage())
+				p.Health[id] = false
 			}
 		}
 	}
 }
 
+func (p *ServerPool) NextID() uint64 {
+	return p.IDs[len(p.IDs)-1] + 1
+}
+
 func (p *ServerPool) GetClientByAddress(address string) pb.KVStoreServiceClient {
-	return p.addressToClient[address]
+	return p.IdToClient[p.AddressToID[address]]
+}
+
+func (p *ServerPool) AddServer(id uint64, address string) {
+	p.IDs = append(p.IDs, id)
+	p.IdToServers[id] = address
+	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to server: %v", err)
+	}
+
+	p.IdToConnections[id] = conn
+	p.IdToClient[id] = pb.NewKVStoreServiceClient(conn)
+	p.AddressToID[address] = id
+}
+
+func (p *ServerPool) RemoveServer(address string) {
+	id := p.AddressToID[address]
+	for i, v := range p.IDs {
+		if v == id {
+			p.IDs = append(p.IDs[:i], p.IDs[i+1:]...)
+			break
+		}
+	}
+	delete(p.IdToServers, id)
+	delete(p.IdToConnections, id)
+	delete(p.IdToClient, id)
+	delete(p.Health, id)
 }

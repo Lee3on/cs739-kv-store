@@ -8,11 +8,17 @@
 using grpc::Channel;
 using grpc::ClientContext;
 using grpc::Status;
+using kv739::CloseRequest;
+using kv739::CloseResponse;
 using kv739::GetRequest;
 using kv739::GetResponse;
 using kv739::KVStoreService;
+using kv739::LeaveRequest;
+using kv739::LeaveResponse;
 using kv739::PutRequest;
 using kv739::PutResponse;
+using kv739::StartRequest;
+using kv739::StartResponse;
 
 bool is_valid_key(const std::string &key)
 {
@@ -76,7 +82,7 @@ public:
 
         GetResponse response;
         ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 3-second timeout
 
         Status status = stub_->Get(&context, request, &response);
 
@@ -116,7 +122,7 @@ public:
 
         PutResponse response;
         ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(1000)); // Set a 1-second timeout
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 3-second timeout
 
         Status status = stub_->Put(&context, request, &response);
 
@@ -128,6 +134,51 @@ public:
 
         old_value = response.old_value();
         return response.status(); // 0 if old value exists, 1 if no old value
+    }
+
+    int kv739_die(const std::string &server_name, int clean)
+    {
+        CloseRequest request;
+        request.set_server_name(server_name);
+        request.set_clean(clean);
+
+        CloseResponse response;
+        ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
+
+        Status status = stub_->Close(&context, request, &response);
+
+        return response.status();
+    }
+
+    int kv739_start(const std::string &server_name, int is_new)
+    {
+        StartRequest request;
+        request.set_server_name(server_name);
+        request.set_new_(is_new);
+
+        StartResponse response;
+        ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
+
+        Status status = stub_->Start(&context, request, &response);
+
+        return response.status();
+    }
+
+    int kv739_leave(const std::string &server_name, int clean)
+    {
+        LeaveRequest request;
+        request.set_server_name(server_name);
+        request.set_clean(clean);
+
+        LeaveResponse response;
+        ClientContext context;
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
+
+        Status status = stub_->Leave(&context, request, &response);
+
+        return response.status();
     }
 
 private:
@@ -251,6 +302,48 @@ int kv739_put(char *key, char *value, char *old_value)
         // Copy the old value to the provided buffer
         strcpy(old_value, old_value_str.c_str());
     }
+
+    return result;
+}
+
+int kv739_die(char *server_name, int clean)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string server_address(server_name);
+    int result = client->kv739_die(server_address, clean);
+
+    return result;
+}
+
+int kv739_start(char *server_name, int is_new)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string server_address(server_name);
+    int result = client->kv739_start(server_address, is_new);
+
+    return result;
+}
+
+int kv739_leave(char *server_name, int clean)
+{
+    if (client == nullptr)
+    {
+        std::cerr << "Client not initialized." << std::endl;
+        return -1;
+    }
+
+    std::string server_address(server_name);
+    int result = client->kv739_leave(server_address, clean);
 
     return result;
 }

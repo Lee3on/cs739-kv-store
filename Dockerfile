@@ -37,7 +37,7 @@ RUN make install
 # Set the working directory
 WORKDIR /app
 
-COPY ./server/server ./load_balancer/load_balancer run_server.sh ./proto/kv739.proto ./client/client.cpp ./client/kv739_client.cpp ./client/kv739_client.h ./client/kv739_test.cpp ./
+COPY ./server/server ./load_balancer/load_balancer run_servers.sh ./proto/kv739.proto ./client/client.cpp ./client/kv739_client.cpp ./client/kv739_client.h ./client/kv739_test.cpp ./
 COPY ./config ./config
 
 RUN mkdir -p storage
@@ -67,4 +67,4 @@ RUN g++ -std=c++11 client.cpp kv739_test.cpp \
     -o kv739_test
 
 # Command to run when starting the container
-CMD ["sh", "-c", "/bin/bash run_server.sh && sleep 10 && ./kv739_client"]
+CMD ["sh", "-c", "/bin/bash run_servers.sh && sleep 10 && ./kv739_client"]
