@@ -15,6 +15,8 @@ gen_go:
     	proto/kv739.proto
 	cp ./server/proto/kv739/* ./load_balancer/proto/kv739/
 
+run_bash:
+	docker exec -it kv739 /bin/bash
 build_image: clean
 	docker build -t kv739 .
 

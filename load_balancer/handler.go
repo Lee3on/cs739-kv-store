@@ -7,8 +7,10 @@ import (
 	pb "load_balancer/proto/kv739" // Import the generated package
 	"load_balancer/utils"
 	"log"
+	"os"
 	"os/exec"
 	"syscall"
+	"time"
 )
 
 // Define a struct that implements the KeyValueServiceServer interface.
@@ -20,6 +22,9 @@ type server struct {
 func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
 	log.Printf("Getting key: %s\n", req.Key)
 	client := serverPool.LoadBalance()
+	if client == nil {
+		return &pb.GetResponse{Status: consts.InternalError}, fmt.Errorf("server address not found in the server pool. Address: %s", req.Key)
+	}
 	return client.Get(ctx, req)
 }
 
@@ -67,20 +72,44 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 		if err := utils.AddInstanceToConfigFile(newId, req.ServerName, utils.GenRaftAddr(newId)); err != nil {
 			return &pb.StartResponse{Status: consts.InternalError}, err
 		}
-		cmd := exec.Command("./server", "--id", fmt.Sprintf("%d", newId))
-		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-		err := cmd.Start()
-		if err != nil {
-			return &pb.StartResponse{Status: consts.InternalError}, err
-		}
-		serverPool.AddServer(newId, req.ServerName)
-		client := serverPool.GetClientByAddress(req.ServerName)
+
+		client := serverPool.LoadBalance()
 		if client == nil {
 			return &pb.StartResponse{Status: consts.InternalError}, fmt.Errorf("server address not found in the server pool. Address: %s", req.ServerName)
 		}
+		req.Id = newId
+		resp, err := client.Start(ctx, req)
+		if err != nil || (resp.Status != consts.Success && resp.Status != consts.Redirect) {
+			return &pb.StartResponse{Status: consts.InternalError}, fmt.Errorf("failed to add node to raft cluster: %v", err)
+		}
 
-		serverPool.Health[serverPool.AddressToID[req.ServerName]] = true
-		return client.Start(ctx, req)
+		if resp.Status == consts.Redirect && resp.LeaderAddress != "" {
+			// Redirect to the leader
+			log.Printf("Redirecting to leader: %s\n", resp.LeaderAddress)
+			client = serverPool.GetClientByAddress(resp.LeaderAddress)
+			if client == nil {
+				return &pb.StartResponse{Status: consts.InternalError}, fmt.Errorf("leader address not found in the server pool. Address: %s", resp.LeaderAddress)
+			}
+			resp, err = client.Start(ctx, req)
+			if err != nil || resp.Status != consts.Success {
+				return &pb.StartResponse{Status: consts.InternalError}, fmt.Errorf("failed to add node to raft cluster: %v", err)
+			}
+		}
+
+		time.Sleep(1 * time.Second)
+		log.Println("Starting server with ID:", newId)
+		cmd := exec.Command("./server", "--id", fmt.Sprintf("%d", newId), "--join")
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+		if err := cmd.Start(); err != nil {
+			return &pb.StartResponse{Status: consts.InternalError}, err
+		}
+
+		log.Println("Server started successfully. ID:", newId)
+		serverPool.AddServer(newId, req.ServerName)
+		serverPool.Health[newId] = true
+		return &pb.StartResponse{Status: consts.Success}, nil
 	} else {
 		id, ok := serverPool.AddressToID[req.ServerName]
 		if !ok {

@@ -58,19 +58,23 @@ message CloseResponse {
 }
 
 message StartRequest {
-  string server_name = 1;
-  int32 new = 2;
+  uint64 id = 1;
+  string server_name = 2;
+  int32 new = 3;
 }
 
 message StartResponse {
   int32 status = 1;
+  string leader_address = 2;
 }
 
 message LeaveRequest {
-  string server_name = 1;
-  int32 clean = 2;
+  uint64 id = 1;
+  string server_name = 2;
+  int32 clean = 3;
 }
 
 message LeaveResponse {
   int32 status = 1;
+  string leader_address = 2;
 }

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"cs739-kv-store/repository"
 	"errors"
 	"log"
@@ -24,7 +23,7 @@ func NewGetService(memoryRepo *repository.MemoryRepo, rdsRepo *repository.RDSRep
 	}
 }
 
-func (s *GetService) GetByKey(ctx context.Context, key string) (string, bool, error) {
+func (s *GetService) GetByKey(key string) (string, bool, error) {
 	if s.memoryRepo == nil {
 		return "", false, ErrMemoryRepoNotInitialized
 	}
@@ -41,7 +40,7 @@ func (s *GetService) GetByKey(ctx context.Context, key string) (string, bool, er
 
 	// Key not found in memoryRepo, fetch from rdsRepo
 	log.Printf("Key: %s not found in memoryRepo, fetching from rdsRepo\n", key)
-	value, found, err = s.GetByKeyFromRDS(ctx, key)
+	value, found, err = s.GetByKeyFromRDS(key)
 	if err != nil {
 		return "", false, err
 	}
@@ -59,7 +58,7 @@ func (s *GetService) GetByKey(ctx context.Context, key string) (string, bool, er
 	return value, true, nil
 }
 
-func (s *GetService) GetByKeyFromRDS(ctx context.Context, key string) (string, bool, error) {
+func (s *GetService) GetByKeyFromRDS(key string) (string, bool, error) {
 	if s.rdsRepo == nil {
 		return "", false, ErrRDSRepoNotInitialized
 	}

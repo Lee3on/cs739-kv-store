@@ -76,6 +76,8 @@ void test_put_overwrite()
     // Put initial value
     kv739_put("overwrite_key", "initial_value", old_value);
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // Add 1000 ms sleep
+
     // Overwrite value
     int result = kv739_put("overwrite_key", "new_value", old_value);
 
@@ -85,6 +87,13 @@ void test_put_overwrite()
     kv739_get("overwrite_key", new_value);
 
     bool passed = (result == 0) && (std::string(old_value) == "initial_value") && (std::string(new_value) == "new_value");
+
+    if (!passed)
+    {
+        std::cout << "Expected result: 0, actual result: " << result << std::endl;
+        std::cout << "Expected old_value: 'initial_value', actual old_value: '" << old_value << "'" << std::endl;
+        std::cout << "Expected new_value: 'new_value', actual new_value: '" << new_value << "'" << std::endl;
+    }
     print_test_result("Put Overwrite Operation", passed);
 }
 

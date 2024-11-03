@@ -82,7 +82,7 @@ public:
 
         GetResponse response;
         ClientContext context;
-        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 3-second timeout
+        context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(10000)); // Set a 3-second timeout
 
         Status status = stub_->Get(&context, request, &response);
 

@@ -1,7 +1,6 @@
 package service
 
 import (
-	"context"
 	"cs739-kv-store/repository"
 	"log"
 )
@@ -18,14 +17,9 @@ func NewPutService(memoryRepo *repository.MemoryRepo, rdsRepo *repository.RDSRep
 	}
 }
 
-func (s *PutService) Put(ctx context.Context, key string, value string) (string, bool, error) {
+func (s *PutService) Put(key string, value string) error {
 	if s.memoryRepo == nil {
-		return "", false, nil
-	}
-
-	oldValue, found, err := s.memoryRepo.Get(key)
-	if err != nil {
-		log.Printf("Error getting key: %s from memory: %v\n", key, err)
+		return nil
 	}
 
 	go func() {
@@ -36,8 +30,8 @@ func (s *PutService) Put(ctx context.Context, key string, value string) (string,
 
 	if err := s.rdsRepo.Put(key, value); err != nil {
 		log.Printf("Error putting key: %s with value: %s in RDS: %v\n", key, value, err)
-		return "", false, err
+		return err
 	}
 
-	return oldValue, found, nil
+	return nil
 }

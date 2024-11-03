@@ -1,6 +1,8 @@
 module load_balancer
 
-go 1.18
+go 1.23
+
+toolchain go1.23.2
 
 require (
 	google.golang.org/grpc v1.49.0

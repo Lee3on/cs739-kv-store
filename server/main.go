@@ -2,10 +2,11 @@ package main
 
 import (
 	"cs739-kv-store/raft"
-	"cs739-kv-store/repository"
+	"cs739-kv-store/service"
+	"database/sql"
 	"flag"
 	_ "github.com/mattn/go-sqlite3"
-	"log"
+	"go.etcd.io/etcd/raft/v3/raftpb"
 )
 
 var (
@@ -14,8 +15,8 @@ var (
 	nodeID      uint64
 	kvAddresses map[uint64]string
 	raftPeers   map[uint64]string
-	proposeCs   map[uint64]chan string
-	commitCs    map[uint64]chan []string
+	join        bool
+	db          *sql.DB
 )
 
 func main() {
@@ -23,23 +24,23 @@ func main() {
 	flag.IntVar(&port, "port", 50051, "Server port")
 	flag.StringVar(&serverIp, "ip", "localhost", "Server IP")
 	flag.Uint64Var(&nodeID, "id", 1, "Node ID")
+	flag.BoolVar(&join, "join", false, "Whether to join a new node")
 	flag.Parse()
 
+	initDB(nodeID)
 	initRaftConfig()
 	initKVConfig()
 
-	kvs := make(map[uint64]*repository.KV)
-	wrapper, err := raft.NewWrapper(nodeID, raftPeers, proposeCs[nodeID], commitCs[nodeID])
-	if err != nil {
-		log.Printf("[ERROR] %d init with error %v", nodeID, err)
-		return
-	}
-	kvs[nodeID], err = repository.NewKV(nodeID, proposeCs[nodeID], commitCs[nodeID])
-	if err != nil {
-		log.Printf("[ERROR] %d init with error %v", nodeID, err)
-		return
-	}
-	startKVServer(kvs[nodeID], kvAddresses[nodeID], wrapper)
+	proposeC := make(chan string)
+	confChangeC := make(chan raftpb.ConfChange)
+	defer close(confChangeC)
+	defer close(proposeC)
+
+	var kvs *service.Kvstore
+	getSnapshot := func() ([]byte, error) { return kvs.GetSnapshot() }
+	raftNode, commitC, errorC := raft.NewRaftNode(nodeID, raftPeers, join, getSnapshot, proposeC, confChangeC)
+	kvs = service.NewKVStore(<-raftNode.SnapshotterReady, proposeC, commitC, errorC, db)
+	startKVServer(kvs, kvAddresses[nodeID], raftNode, confChangeC, errorC)
 
 	// Block and wait for exit signals or errors
 	select {}

@@ -41,7 +41,6 @@ COPY ./server/server ./load_balancer/load_balancer run_servers.sh ./proto/kv739.
 COPY ./config ./config
 
 RUN mkdir -p storage
-RUN mkdir -p storage/wal
 
 # Generate C++ code from the proto file
 RUN mkdir -p generated
