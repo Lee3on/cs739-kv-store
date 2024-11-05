@@ -1,7 +1,7 @@
 def generate_server_lists():
     kv_start_port = 6000
     raft_start_port = 5000
-    num_servers = 3
+    num_servers = 10
 
     kv_file_name = "./config/kv_server_list"
     raft_file_name = "./config/raft_server_list"
@@ -14,7 +14,8 @@ def generate_server_lists():
 
     with open(raft_file_name, 'w') as raft_file:
         for i in range(num_servers):
-            raft_server_address = f"{i+1} http://127.0.0.1:{raft_start_port + i}\n"
+            raft_server_address = f"{
+                i+1} http://127.0.0.1:{raft_start_port + i}\n"
             raft_file.write(raft_server_address)
 
     with open(run_server_file_name, 'w') as run_server_file:

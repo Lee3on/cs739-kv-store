@@ -37,7 +37,7 @@ RUN make install
 # Set the working directory
 WORKDIR /app
 
-COPY ./server/server ./load_balancer/load_balancer run_servers.sh ./proto/kv739.proto ./client/client.cpp ./client/kv739_client.cpp ./client/kv739_client.h ./client/kv739_test.cpp ./
+COPY ./server/server ./load_balancer/load_balancer run_servers.sh ./proto/kv739.proto ./client/client.cpp ./client/kv739_client.cpp ./client/kv739_client.h ./client/kv739_test*.cpp ./
 COPY ./config ./config
 
 RUN mkdir -p storage
@@ -64,6 +64,14 @@ RUN g++ -std=c++11 client.cpp kv739_test.cpp \
     `pkg-config --cflags protobuf grpc grpc++` \
     `pkg-config --libs protobuf grpc grpc++` \
     -o kv739_test
+
+RUN g++ -std=c++11 client.cpp kv739_test1.cpp \
+    ./generated/kv739.pb.cc \
+    ./generated/kv739.grpc.pb.cc \
+    -I./generated \
+    `pkg-config --cflags protobuf grpc grpc++` \
+    `pkg-config --libs protobuf grpc grpc++` \
+    -o kv739_test1
 
 # Command to run when starting the container
 CMD ["sh", "-c", "/bin/bash run_servers.sh && sleep 10 && ./kv739_client"]

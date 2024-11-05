@@ -7,6 +7,7 @@ import (
 	"flag"
 	_ "github.com/mattn/go-sqlite3"
 	"go.etcd.io/etcd/raft/v3/raftpb"
+	"log"
 )
 
 var (
@@ -26,6 +27,7 @@ func main() {
 	flag.Uint64Var(&nodeID, "id", 1, "Node ID")
 	flag.BoolVar(&join, "join", false, "Whether to join a new node")
 	flag.Parse()
+	log.Printf("Node ID: %d, join: %v\n", nodeID, join)
 
 	initDB(nodeID)
 	initRaftConfig()

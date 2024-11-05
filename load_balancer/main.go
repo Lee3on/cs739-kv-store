@@ -11,6 +11,7 @@ import (
 	"log"
 	"net"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -45,7 +46,9 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterKVStoreServiceServer(grpcServer, &server{})
+	pb.RegisterKVStoreServiceServer(grpcServer, &server{
+		mutex: sync.Mutex{},
+	})
 
 	fmt.Printf("Load balancer started on :%d\n", port)
 	if err := grpcServer.Serve(lis); err != nil {

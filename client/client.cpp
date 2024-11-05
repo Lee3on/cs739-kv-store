@@ -147,6 +147,11 @@ public:
         context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
 
         Status status = stub_->Close(&context, request, &response);
+        if (!status.ok())
+        {
+            std::cerr << "gRPC Close request failed: " << status.error_message() << std::endl;
+            return -1; // Failure
+        }
 
         return response.status();
     }
@@ -162,6 +167,11 @@ public:
         context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
 
         Status status = stub_->Start(&context, request, &response);
+        if (!status.ok())
+        {
+            std::cerr << "gRPC Start request failed: " << status.error_message() << std::endl;
+            return -1; // Failure
+        }
 
         return response.status();
     }
@@ -177,6 +187,11 @@ public:
         context.set_deadline(std::chrono::system_clock::now() + std::chrono::milliseconds(3000)); // Set a 1-second timeout
 
         Status status = stub_->Leave(&context, request, &response);
+        if (!status.ok())
+        {
+            std::cerr << "gRPC Leave request failed: " << status.error_message() << std::endl;
+            return -1; // Failure
+        }
 
         return response.status();
     }

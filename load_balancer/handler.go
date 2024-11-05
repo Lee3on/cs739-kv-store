@@ -9,6 +9,7 @@ import (
 	"log"
 	"os"
 	"os/exec"
+	"sync"
 	"syscall"
 	"time"
 )
@@ -16,11 +17,12 @@ import (
 // Define a struct that implements the KeyValueServiceServer interface.
 type server struct {
 	pb.UnimplementedKVStoreServiceServer
+	mutex sync.Mutex
 }
 
 // Get Implement the Get method.
 func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, error) {
-	log.Printf("Getting key: %s\n", req.Key)
+	//log.Printf("Getting key: %s\n", req.Key)
 	client := serverPool.LoadBalance()
 	if client == nil {
 		return &pb.GetResponse{Status: consts.InternalError}, fmt.Errorf("server address not found in the server pool. Address: %s", req.Key)
@@ -30,7 +32,7 @@ func (s *server) Get(ctx context.Context, req *pb.GetRequest) (*pb.GetResponse, 
 
 // Put Implement the Put method.
 func (s *server) Put(ctx context.Context, req *pb.PutRequest) (*pb.PutResponse, error) {
-	log.Printf("Storing key: %s with value: %s\n", req.Key, req.Value)
+	//log.Printf("Storing key: %s with value: %s\n", req.Key, req.Value)
 	client := serverPool.LoadBalance()
 	resp, err := client.Put(ctx, req)
 	if err != nil {
@@ -118,6 +120,8 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 
 		cmd := exec.Command("./server", "--id", fmt.Sprintf("%d", id))
 		cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 		err := cmd.Start()
 		if err != nil {
 			return &pb.StartResponse{Status: consts.InternalError}, err
@@ -130,15 +134,30 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 
 func (s *server) Leave(ctx context.Context, req *pb.LeaveRequest) (*pb.LeaveResponse, error) {
 	log.Printf("Stopping server: %s\n", req.ServerName)
-	if err := utils.RemoveInstanceFromConfigFile(req.ServerName); err != nil {
-		return &pb.LeaveResponse{Status: consts.InternalError}, err
-	}
-	serverPool.RemoveServer(req.ServerName)
 	client := serverPool.GetClientByAddress(req.ServerName)
 	if client == nil {
 		return &pb.LeaveResponse{Status: consts.InternalError}, fmt.Errorf("server address not found in the server pool. Address: %s", req.ServerName)
 	}
 
-	serverPool.Health[serverPool.AddressToID[req.ServerName]] = false
-	return client.Leave(ctx, req)
+	req.Id = serverPool.AddressToID[req.ServerName]
+	if err := utils.RemoveInstanceFromConfigFile(req.ServerName); err != nil {
+		return &pb.LeaveResponse{Status: consts.InternalError}, err
+	}
+	serverPool.RemoveServer(req.ServerName)
+
+	resp, err := client.Leave(ctx, req)
+	if err != nil || (resp.Status != consts.Success && resp.Status != consts.Redirect) {
+		return &pb.LeaveResponse{Status: consts.InternalError}, fmt.Errorf("failed to remove node from raft cluster: %v", err)
+	}
+
+	if resp.Status == consts.Redirect && resp.LeaderAddress != "" {
+		// Redirect to the leader
+		client = serverPool.GetClientByAddress(resp.LeaderAddress)
+		if client == nil {
+			return &pb.LeaveResponse{Status: consts.InternalError}, fmt.Errorf("leader address not found in the server pool. Address: %s", resp.LeaderAddress)
+		}
+		return client.Leave(ctx, req)
+	}
+
+	return &pb.LeaveResponse{Status: consts.Success}, nil
 }

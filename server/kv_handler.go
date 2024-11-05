@@ -6,6 +6,7 @@ import (
 	pb "cs739-kv-store/proto/kv739" // Import the generated package
 	"cs739-kv-store/raft"
 	"cs739-kv-store/service"
+	"cs739-kv-store/utils"
 	"go.etcd.io/etcd/raft/v3/raftpb"
 	"google.golang.org/grpc"
 	"log"
@@ -162,8 +163,8 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 
 	cc := raftpb.ConfChange{
 		Type:    raftpb.ConfChangeAddNode,
-		NodeID:  nodeID,
-		Context: []byte(raftPeers[nodeID]),
+		NodeID:  req.Id,
+		Context: []byte(utils.GenRaftAddr(req.Id)),
 	}
 	s.confChangeC <- cc
 
@@ -180,40 +181,22 @@ func (s *server) Leave(ctx context.Context, req *pb.LeaveRequest) (*pb.LeaveResp
 	}
 
 	cc := raftpb.ConfChange{
-		Type:    raftpb.ConfChangeRemoveNode,
-		NodeID:  nodeID,
-		Context: []byte(raftPeers[nodeID]),
+		Type:   raftpb.ConfChangeRemoveNode,
+		NodeID: req.Id,
 	}
 	s.confChangeC <- cc
 
 	if req.Clean == 1 {
-		// Graceful termination
-		log.Println("Graceful termination initiated...")
-
 		// Lock to prevent new requests while shutting down
 		s.mutex.Lock()
+		defer s.mutex.Unlock()
 
 		// Flush any in-memory state (this is just an example, actual logic would depend on your state handling)
 		if err := s.kv.Flush(); err != nil {
 			return &pb.LeaveResponse{Status: consts.InternalError}, err
 		}
-		s.raftNode.Stop()
-
-		// Log shutdown and exit after a short delay to allow cleanup
-		log.Println("Shutting down gracefully...")
-		go func() {
-			time.Sleep(1 * time.Second) // Give some time for cleanup
-			os.Exit(0)                  // Exit after cleanup
-		}()
 
 		return &pb.LeaveResponse{Status: consts.Success}, nil
 	}
-	// Immediate termination
-	log.Println("Immediate termination initiated...")
-
-	// Terminate the process immediately without flushing state or notifying others
-	go func() {
-		os.Exit(0)
-	}()
 	return &pb.LeaveResponse{Status: consts.Success}, nil
 }

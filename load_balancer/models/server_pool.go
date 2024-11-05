@@ -4,6 +4,7 @@ import (
 	"context"
 	pb "load_balancer/proto/kv739"
 	"log"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -18,6 +19,9 @@ type ServerPool struct {
 	current         uint32
 	Health          map[uint64]bool
 	AddressToID     map[string]uint64
+	globalNextID    uint64
+
+	mu sync.Mutex
 }
 
 func NewServerPool(IDs []uint64, servers map[uint64]string) *ServerPool {
@@ -28,6 +32,8 @@ func NewServerPool(IDs []uint64, servers map[uint64]string) *ServerPool {
 		IdToClient:      make(map[uint64]pb.KVStoreServiceClient, len(servers)),
 		Health:          make(map[uint64]bool, len(servers)),
 		AddressToID:     make(map[string]uint64),
+		globalNextID:    IDs[len(IDs)-1] + 1,
+		mu:              sync.Mutex{},
 	}
 }
 
@@ -91,7 +97,7 @@ func (p *ServerPool) HealthCheck(interval time.Duration) {
 
 			// Update Health status based on response
 			if err == nil && resp.GetMessage() == "pong" {
-				log.Printf("Server %s is healthy", p.IdToServers[id])
+				//log.Printf("Server %s is healthy", p.IdToServers[id])
 				p.Health[id] = true
 			} else {
 				log.Printf("Server %s is unhealthy: err=%v, message=%s", p.IdToServers[id], err, resp.GetMessage())
@@ -102,7 +108,12 @@ func (p *ServerPool) HealthCheck(interval time.Duration) {
 }
 
 func (p *ServerPool) NextID() uint64 {
-	return p.IDs[len(p.IDs)-1] + 1
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	id := p.globalNextID
+	p.globalNextID += 1
+	return id
 }
 
 func (p *ServerPool) GetClientByAddress(address string) pb.KVStoreServiceClient {
@@ -110,6 +121,9 @@ func (p *ServerPool) GetClientByAddress(address string) pb.KVStoreServiceClient 
 }
 
 func (p *ServerPool) AddServer(id uint64, address string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
 	p.IDs = append(p.IDs, id)
 	p.IdToServers[id] = address
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
@@ -123,6 +137,8 @@ func (p *ServerPool) AddServer(id uint64, address string) {
 }
 
 func (p *ServerPool) RemoveServer(address string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
 	id := p.AddressToID[address]
 	for i, v := range p.IDs {
 		if v == id {
@@ -130,6 +146,7 @@ func (p *ServerPool) RemoveServer(address string) {
 			break
 		}
 	}
+	delete(p.AddressToID, address)
 	delete(p.IdToServers, id)
 	delete(p.IdToConnections, id)
 	delete(p.IdToClient, id)

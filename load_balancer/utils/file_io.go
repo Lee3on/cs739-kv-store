@@ -93,33 +93,27 @@ func RemoveInstanceFromConfigFile(kvAddr string) error {
 	// Remove the line from the KV config file
 	scanner := bufio.NewScanner(kvConfigFile)
 	var id uint64
+	var lines []string
 	for scanner.Scan() {
+		var curId uint64
 		line := scanner.Text()
 		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
+		if len(parts) != 2 {
 			log.Println("Invalid line format:", line)
 			continue
 		}
 
-		if _, err := fmt.Sscanf(parts[0], "%d", &id); err != nil {
+		if _, err := fmt.Sscanf(parts[0], "%d", &curId); err != nil {
 			log.Println("Invalid ID:", parts[0])
 			continue
 		}
 
 		if parts[1] == kvAddr {
-			// Remove the line from the KV config file
-			_, err = kvConfigFile.Seek(int64(-len(line)), os.SEEK_CUR)
-			if err != nil {
-				log.Println("Error seeking in file:", err)
-				return err
-			}
-			_, err = kvConfigFile.WriteString(strings.Repeat(" ", len(line)))
-			if err != nil {
-				log.Println("Error writing to file:", err)
-				return err
-			}
-			break
+			id = curId
+			continue
 		}
+
+		lines = append(lines, line)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -127,12 +121,17 @@ func RemoveInstanceFromConfigFile(kvAddr string) error {
 		return err
 	}
 
+	if err := os.WriteFile(consts.KVServerListFileName, []byte(strings.Join(lines, "\n")+"\n"), 0644); err != nil {
+		return fmt.Errorf("error writing to file: %v", err)
+	}
+
 	// Remove the line from the Raft config file
+	lines = make([]string, 0)
 	scanner = bufio.NewScanner(raftConfigFile)
 	for scanner.Scan() {
 		line := scanner.Text()
 		parts := strings.SplitN(line, " ", 2)
-		if len(parts) < 2 {
+		if len(parts) != 2 {
 			log.Println("Invalid line format:", line)
 			continue
 		}
@@ -144,19 +143,18 @@ func RemoveInstanceFromConfigFile(kvAddr string) error {
 		}
 
 		if lineID == id {
-			// Remove the line from the Raft config file
-			_, err = raftConfigFile.Seek(int64(-len(line)), os.SEEK_CUR)
-			if err != nil {
-				log.Println("Error seeking in file (raft):", err)
-				return err
-			}
-			_, err = raftConfigFile.WriteString(strings.Repeat(" ", len(line)))
-			if err != nil {
-				log.Println("Error writing to file (raft):", err)
-				return err
-			}
-			break
+			continue
 		}
+		lines = append(lines, line)
+	}
+
+	if err := scanner.Err(); err != nil {
+		log.Println("Error reading config file:", err)
+		return err
+	}
+
+	if err := os.WriteFile(consts.RaftServerListFileName, []byte(strings.Join(lines, "\n")+"\n"), 0644); err != nil {
+		return fmt.Errorf("error writing to file: %v", err)
 	}
 
 	return nil

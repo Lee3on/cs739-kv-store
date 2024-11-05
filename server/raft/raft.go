@@ -158,7 +158,7 @@ func (rc *RaftNode) publishEntries(ents []raftpb.Entry) (<-chan struct{}, bool) 
 					rc.transport.AddPeer(types.ID(cc.NodeID), []string{string(cc.Context)})
 				}
 			case raftpb.ConfChangeRemoveNode:
-				if cc.NodeID == uint64(rc.id) {
+				if cc.NodeID == rc.id {
 					log.Println("I've been removed from the cluster! Shutting down.")
 					return nil, false
 				}
@@ -269,12 +269,12 @@ func (rc *RaftNode) startRaft() {
 	// signal replay has finished
 	rc.SnapshotterReady <- rc.snapshotter
 
-	rpeers := make([]raft.Peer, len(rc.peers))
-	for i := range rpeers {
-		rpeers[i] = raft.Peer{ID: uint64(i + 1)}
+	var rpeers []raft.Peer
+	for id, _ := range rc.peers {
+		rpeers = append(rpeers, raft.Peer{ID: id})
 	}
 	c := &raft.Config{
-		ID:                        uint64(rc.id),
+		ID:                        rc.id,
 		ElectionTick:              10,
 		HeartbeatTick:             1,
 		Storage:                   rc.raftStorage,
@@ -451,6 +451,7 @@ func (rc *RaftNode) serveChannels() {
 			applyDoneC, ok := rc.publishEntries(rc.entriesToApply(rd.CommittedEntries))
 			if !ok {
 				rc.Stop()
+				os.Exit(0)
 				return
 			}
 			rc.maybeTriggerSnapshot(applyDoneC)

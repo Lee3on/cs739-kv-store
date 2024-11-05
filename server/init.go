@@ -52,9 +52,7 @@ func initRaftConfig() {
 			log.Println("Invalid ID:", parts[0])
 			continue
 		}
-		if !join {
-			raftPeers[id] = parts[1]
-		}
+		raftPeers[id] = parts[1]
 	}
 
 	if err := scanner.Err(); err != nil {

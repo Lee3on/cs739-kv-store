@@ -13,6 +13,8 @@
 #include <string>
 #include <thread>
 #include <vector>
+#include <sstream>
+#include <unordered_map>
 
 // Include the client header file
 #include "kv739_client.h"
@@ -70,13 +72,32 @@ char *generateRandomString(int length)
     return randomStr;
 }
 
-void read_config_file(std::vector<std::string> &all_IP)
+std::vector<std::string> split(const std::string &str, char delimiter)
+{
+    std::vector<std::string> tokens;
+    std::istringstream stream(str);
+    std::string token;
+
+    while (std::getline(stream, token, delimiter))
+    {
+        if (!token.empty())
+        { // Ignore empty tokens if you want
+            tokens.push_back(token);
+        }
+    }
+
+    return tokens;
+}
+
+void read_config_file(std::unordered_map<std::string, std::string> &all_server)
 {
     std::ifstream file("./config/kv_server_list");
     std::string line;
     while (std::getline(file, line))
     {
-        all_IP.push_back(line);
+        char delimiter = ' ';
+        std::vector<std::string> strs = split(line, delimiter);
+        all_server[strs[0]] = strs[1];
     }
     file.close();
 }
@@ -502,13 +523,15 @@ void test_server_recovery()
     }
 }
 
-void test_seq_kill_put()
+std::unordered_map<std::string, std::string> killed_server;
+std::unordered_map<std::string, std::string> stored_kv;
+void test_seq_kill_put(int opt)
 {
     std::string test_name = "Sequential Kill Put";
     printf("\nTest: %s\n", test_name.c_str());
 
-    std::vector<std::string> all_IP;
-    read_config_file(all_IP);
+    std::unordered_map<std::string, std::string> all_server;
+    read_config_file(all_server);
 
     char *key = generateRandomString(10);
     char value[] = "random_value";
@@ -516,92 +539,115 @@ void test_seq_kill_put()
     int ret;
     bool passed = true;
 
-    std::vector<std::string> notKilledIP = all_IP;
-    int i;
-    for (i = 0; i <= all_IP.size(); i++)
+    std::unordered_map<std::string, std::string> notKilledIP = all_server;
+    int i = 0;
+    while (i < 3)
     {
+        // std::string id = pair.first;
+        // std::string server_name = pair.second;
+
         ret = kv739_put(key, value, old_value);
         if (ret == -1)
         {
-            printf("Put failed after killing %d servers\n", i);
+            printf("Put failed after killing %d servers\n", i++);
             passed = false;
-            break;
+            return;
         }
         else
         {
+            stored_kv[std::string(key)] = std::string(value);
             printf(
-                "Put succeeded after killing %d servers with return code %d\n",
-                i, ret);
+                "Put succeeded after killing %d servers with return code %d\n", i++, ret);
         }
-        if (!notKilledIP.empty())
+
+        if (notKilledIP.size() > 1)
         {
             int killIndex = rand() % notKilledIP.size();
-            std::string servername = notKilledIP[killIndex];
-            printf("Killing server at index %d: %s\n", killIndex,
-                   servername.c_str());
-            kv739_die(const_cast<char *>(servername.c_str()), 1);
+            auto it = notKilledIP.begin();
+            std::advance(it, killIndex);
+
+            std::string killed_id = it->first;
+            std::string servername = notKilledIP[killed_id];
+            printf("Killing server %s: %s\n", killed_id.c_str(), servername.c_str());
+            int result;
+            if (opt == 0)
+            {
+                result = kv739_die(const_cast<char *>(servername.c_str()), 1);
+            }
+            else
+            {
+                result = kv739_leave(const_cast<char *>(servername.c_str()), 1);
+            }
+
+            if (result == -1)
+            {
+                printf("Kill server %s failed\n", killed_id.c_str());
+                return;
+            }
+
             std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-            notKilledIP.erase(notKilledIP.begin() + killIndex);
+
+            killed_server[killed_id] = servername;
+            notKilledIP.erase(it);
         }
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(10000));
     }
 
     delete[] key;
 
-    print_test_result(test_name, passed);
+    // print_test_result(test_name, passed);
 }
 
-void test_seq_kill_get()
+void test_seq_recover(int opt)
 {
-    std::string test_name = "Sequential Kill Get";
-    printf("\nTest: %s\n", test_name.c_str());
-
-    std::vector<std::string> all_IP;
-    read_config_file(all_IP);
-
-    char *key = generateRandomString(10);
-    char value[] = "random_value";
-    char old_value[2049] = {0};
-    int ret;
-    bool passed = true;
-
-    // Insert the key before starting the test
-    kv739_put(key, value, old_value);
-
-    std::vector<std::string> notKilledIP = all_IP;
-    int i;
-    for (i = 0; i <= all_IP.size(); i++)
+    if (killed_server.empty())
     {
-        ret = kv739_get(key, value);
-        if (ret == -1)
+        return;
+    }
+
+    std::string test_name = "Sequential Recovery";
+
+    bool pass = true;
+    int count = 0;
+    bool flag = false;
+    for (const auto &pair : killed_server)
+    {
+        std::string id = pair.first;
+        std::string server_name = pair.second;
+        printf("id=%s, server_name=%s\n", id.c_str(), server_name.c_str());
+
+        int resp = kv739_start(const_cast<char *>(server_name.c_str()), opt);
+        if (resp == -1)
         {
-            printf("Get failed after killing %d servers\n", i);
-            passed = false;
-            break;
+            printf("Start server %s failed\n", server_name.c_str());
+            continue;
         }
-        else
+        count++;
+
+        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+
+        for (const auto &kvpair : stored_kv)
         {
-            printf(
-                "Get succeeded after killing %d servers with return code %d\n",
-                i, ret);
-        }
-        if (!notKilledIP.empty())
-        {
-            int killIndex = rand() % notKilledIP.size();
-            std::string servername = notKilledIP[killIndex];
-            printf("Killing server at index %d: %s\n", killIndex,
-                   servername.c_str());
-            kv739_die(const_cast<char *>(servername.c_str()), 0);
-            notKilledIP.erase(notKilledIP.begin() + killIndex);
+            std::string k = kvpair.first;
+            std::string v = kvpair.second;
+            printf("key=%s, server_name=%s\n", k.c_str(), v.c_str());
+            char value[2049] = {0};
+            int ret = kv739_get(const_cast<char *>(k.c_str()), value);
+            if (ret != -1 && !flag)
+            {
+                printf("Get succeeded after recovering %d nodes\n", count);
+                flag = true;
+            }
+            if (ret != 0 || std::string(value) != v)
+            {
+                pass = false;
+                printf("Get failed to get the expected value. key=%s, expected val=%s, actual val=%s\n", k, v, value);
+            }
         }
     }
 
-    delete[] key;
-
-    print_test_result(test_name, passed);
-
-    // Restart servers for next test case
-    // system("./kill.sh");
-    // system("./startup_many.sh");
+    print_test_result(test_name, pass);
 }
 
 int main(int argc, char *argv[])
@@ -616,7 +662,7 @@ int main(int argc, char *argv[])
     // Initialize client with the server address
     init_client(server_address);
 
-    printf("Running Correctness Tests...\n");
+    // printf("Running Correctness Tests...\n");
 
     // test_reinitialization_with_shutdown();
     // test_reinitialization_without_shutdown();
@@ -628,8 +674,16 @@ int main(int argc, char *argv[])
     // test_put_get_order_2();
     // test_concurrent_writes();
     // test_server_recovery();
-    test_seq_kill_put();
-    // test_seq_kill_get();
+    if (argc > 1 && std::string(argv[1]) == "--die")
+    {
+        test_seq_kill_put(0);
+        test_seq_recover(0);
+    }
+    else if (argc > 1 && std::string(argv[1]) == "--leave")
+    {
+        test_seq_kill_put(1);
+        test_seq_recover(1);
+    }
 
     printf("\nAll tests completed\n");
 

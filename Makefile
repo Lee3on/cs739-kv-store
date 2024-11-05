@@ -26,6 +26,9 @@ exec_test:
 	docker exec -it kv739 ./kv739_test
 put:
 	docker exec -it kv739 ./kv739_test --put
+exec_test1:
+	docker exec -it kv739 ./kv739_test1
+
 clean:
 	docker rm kv739 -f
 	docker rmi kv739:latest -f
