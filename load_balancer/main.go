@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"google.golang.org/grpc"
@@ -38,7 +39,8 @@ func main() {
 	serverPool.Connect()
 	defer serverPool.Close()
 
-	go serverPool.HealthCheck(5 * time.Second)
+	forceLeaveC := make(chan string)
+	go serverPool.HealthCheck(5*time.Second, forceLeaveC)
 
 	lis, err := net.Listen("tcp", serverIp+":"+strconv.Itoa(port))
 	if err != nil {
@@ -46,9 +48,26 @@ func main() {
 	}
 
 	grpcServer := grpc.NewServer()
-	pb.RegisterKVStoreServiceServer(grpcServer, &server{
+	newServer := &server{
 		mutex: sync.Mutex{},
-	})
+	}
+	pb.RegisterKVStoreServiceServer(grpcServer, newServer)
+
+	go func() {
+		for serverName := range forceLeaveC {
+			log.Printf("Force leaving the server pool for server: %s...\n", serverName)
+			resp, err := newServer.Leave(context.TODO(), &pb.LeaveRequest{
+				ServerName: serverName,
+				Clean:      1,
+			})
+
+			if err != nil || resp.Status != consts.Success {
+				log.Printf("Failed to leave the server pool: %v\n", err)
+			} else {
+				log.Printf("Force leave response: %v\n", resp)
+			}
+		}
+	}()
 
 	fmt.Printf("Load balancer started on :%d\n", port)
 	if err := grpcServer.Serve(lis); err != nil {

@@ -9,4 +9,6 @@
 ./server --id 9 &
 ./server --id 10 &
 sleep 20
-./load_balancer &
+./load_balancer --port 8080 &
+./load_balancer --port 8081 &
+./load_balancer --port 8082 &

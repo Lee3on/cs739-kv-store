@@ -6,7 +6,8 @@ const (
 )
 
 const (
-	RaftPortBase = 5000
+	RaftPortBase         = 5000
+	ForceRemoveThreshold = 12
 )
 
 const (

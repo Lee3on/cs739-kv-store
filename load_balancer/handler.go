@@ -63,7 +63,7 @@ func (s *server) Close(ctx context.Context, req *pb.CloseRequest) (*pb.CloseResp
 		return &pb.CloseResponse{Status: consts.InternalError}, fmt.Errorf("server address not found in the server pool. Address: %s", req.ServerName)
 	}
 
-	serverPool.Health[serverPool.AddressToID[req.ServerName]] = false
+	serverPool.Health[serverPool.AddressToID[req.ServerName]] = 1
 	return client.Close(ctx, req)
 }
 
@@ -110,7 +110,7 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 
 		log.Println("Server started successfully. ID:", newId)
 		serverPool.AddServer(newId, req.ServerName)
-		serverPool.Health[newId] = true
+		serverPool.Health[newId] = 0
 		return &pb.StartResponse{Status: consts.Success}, nil
 	} else {
 		id, ok := serverPool.AddressToID[req.ServerName]
@@ -127,7 +127,7 @@ func (s *server) Start(ctx context.Context, req *pb.StartRequest) (*pb.StartResp
 			return &pb.StartResponse{Status: consts.InternalError}, err
 		}
 
-		serverPool.Health[id] = true
+		serverPool.Health[id] = 0
 		return &pb.StartResponse{Status: consts.Success}, nil
 	}
 }

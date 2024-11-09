@@ -5,10 +5,6 @@
 #include <memory>
 #include <string>
 
-// Initialize the gRPC client with the given server address in "host:port" format.
-// Returns 0 on success and -1 on failure.
-int kv739_init(char *server_name);
-
 // Initialize the gRPC client with the given configuration file, which contains a list of server addresses.
 // Returns 0 on success and -1 on failure.
 int kv739_init(char *config_file);

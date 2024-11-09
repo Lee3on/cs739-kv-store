@@ -39,6 +39,7 @@ WORKDIR /app
 
 COPY ./server/server ./load_balancer/load_balancer run_servers.sh ./proto/kv739.proto ./client/client.cpp ./client/kv739_client.cpp ./client/kv739_client.h ./client/kv739_test*.cpp ./
 COPY ./config ./config
+COPY ./client/server_list ./
 
 RUN mkdir -p storage
 

@@ -2,6 +2,7 @@ package models
 
 import (
 	"context"
+	"load_balancer/consts"
 	pb "load_balancer/proto/kv739"
 	"log"
 	"sync"
@@ -17,7 +18,7 @@ type ServerPool struct {
 	IdToConnections map[uint64]*grpc.ClientConn
 	IdToClient      map[uint64]pb.KVStoreServiceClient
 	current         uint32
-	Health          map[uint64]bool
+	Health          map[uint64]int
 	AddressToID     map[string]uint64
 	globalNextID    uint64
 
@@ -30,7 +31,7 @@ func NewServerPool(IDs []uint64, servers map[uint64]string) *ServerPool {
 		IdToServers:     servers,
 		IdToConnections: make(map[uint64]*grpc.ClientConn, len(servers)),
 		IdToClient:      make(map[uint64]pb.KVStoreServiceClient, len(servers)),
-		Health:          make(map[uint64]bool, len(servers)),
+		Health:          make(map[uint64]int, len(servers)),
 		AddressToID:     make(map[string]uint64),
 		globalNextID:    IDs[len(IDs)-1] + 1,
 		mu:              sync.Mutex{},
@@ -72,7 +73,7 @@ func (p *ServerPool) getNextServer() pb.KVStoreServiceClient {
 		id := p.IDs[index]
 
 		// Check if the server is healthy
-		if p.Health[id] {
+		if p.Health[id] == 0 {
 			return p.IdToClient[id]
 		}
 		// If not healthy, continue to the next server
@@ -86,7 +87,7 @@ func (p *ServerPool) LoadBalance() pb.KVStoreServiceClient {
 }
 
 // HealthCheck runs a periodic Health check on all servers
-func (p *ServerPool) HealthCheck(interval time.Duration) {
+func (p *ServerPool) HealthCheck(interval time.Duration, forceLeaveC chan<- string) {
 	for {
 		time.Sleep(interval)
 		for id, client := range p.IdToClient {
@@ -98,10 +99,13 @@ func (p *ServerPool) HealthCheck(interval time.Duration) {
 			// Update Health status based on response
 			if err == nil && resp.GetMessage() == "pong" {
 				//log.Printf("Server %s is healthy", p.IdToServers[id])
-				p.Health[id] = true
+				p.Health[id] = 0
 			} else {
 				log.Printf("Server %s is unhealthy: err=%v, message=%s", p.IdToServers[id], err, resp.GetMessage())
-				p.Health[id] = false
+				p.Health[id] += 1
+				if p.Health[id] >= consts.ForceRemoveThreshold {
+					forceLeaveC <- p.IdToServers[id]
+				}
 			}
 		}
 	}

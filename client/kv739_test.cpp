@@ -14,16 +14,16 @@ std::vector<std::string> hot_keys;
 std::vector<std::string> cold_keys;
 std::vector<std::string> uniform_keys;
 
-// Helper function to initialize the client with the server address
-void init_client(const std::string &server_address)
+// Helper function to initialize the client with the config file
+void init_client(const std::string &config_file)
 {
-    char *server_name = const_cast<char *>(server_address.c_str());
-    if (kv739_init(server_name) != 0)
+    char *config_file_name = const_cast<char *>(config_file.c_str());
+    if (kv739_init(config_file_name) != 0)
     {
-        std::cerr << "Failed to initialize client with server address: " << server_name << std::endl;
+        std::cerr << "Failed to initialize client with config file: " << config_file << std::endl;
         exit(-1);
     }
-    std::cout << "Client successfully initialized with server address: " << server_name << std::endl;
+    std::cout << "Client successfully initialized with config file: " << config_file << std::endl;
 }
 
 // Helper function to gracefully shut down the client
@@ -286,14 +286,8 @@ void test_recovery(int num_keys, int num_requests)
 
 int main(int argc, char *argv[])
 {
-    // Read the server address from the environment variable "SERVER_ADDRESS"
-    const char *server_address_env = getenv("SERVER_ADDRESS");
-
-    // If the environment variable is not set, use a default value
-    std::string server_address = (server_address_env != nullptr) ? server_address_env : "localhost:8080";
-
     // Initialize client with the server address
-    init_client(server_address);
+    init_client("./server_list");
 
     // Run the tests
     int key_nums = 100;
